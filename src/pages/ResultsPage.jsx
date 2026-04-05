@@ -11,7 +11,7 @@ export default function ResultsPage() {
     const stored = localStorage.getItem('lastTestResult');
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (String(parsed.testId) === String(id)) {
+      if (parsed.testId === id) {
         setResult(parsed);
       } else {
         navigate('/');
@@ -30,8 +30,7 @@ export default function ResultsPage() {
   }
 
   const { score, testData, timeTaken } = result;
-  const maxMarks = score.totalQuestions * score.marksPerQuestion;
-  const percentage = maxMarks > 0 ? Math.round((score.finalScore / maxMarks) * 100) : 0;
+  const percentage = score.maxMarks > 0 ? Math.round((score.finalScore / score.maxMarks) * 100) : 0;
   const clampedPercentage = Math.max(0, percentage);
 
   const formatTimeTaken = (seconds) => {
@@ -43,7 +42,6 @@ export default function ResultsPage() {
     return `${s}s`;
   };
 
-  // Determine grade color
   const getGradeInfo = (pct) => {
     if (pct >= 80) return { label: 'Excellent!', color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200' };
     if (pct >= 60) return { label: 'Good Job!', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
@@ -73,7 +71,6 @@ export default function ResultsPage() {
       {/* Score Card */}
       <div className="max-w-2xl mx-auto px-4 -mt-6">
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-fade-in-up stagger-1">
-          {/* Percentage Display */}
           <div className="py-10 px-6 text-center border-b border-slate-100">
             <div className="relative inline-block mb-4">
               <span className="text-7xl sm:text-8xl font-black text-slate-800 tracking-tight">
@@ -84,7 +81,7 @@ export default function ResultsPage() {
               {grade.label}
             </div>
             <p className="text-slate-500 text-sm mt-3">
-              Total Score: <span className="font-bold text-slate-800">{score.finalScore}</span> out of <span className="font-bold text-slate-800">{maxMarks}</span>
+              Total Score: <span className="font-bold text-slate-800">{score.finalScore}</span> out of <span className="font-bold text-slate-800">{score.maxMarks}</span>
             </p>
           </div>
 
@@ -108,16 +105,12 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          {/* Marks Breakdown */}
+          {/* Marks & Time */}
           <div className="bg-slate-50 px-6 py-4 border-t border-slate-100">
             <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-sm">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                <span className="text-slate-600">Marks Gained: <span className="font-bold text-emerald-600">+{score.totalMarks}</span></span>
-              </div>
-              <div className="flex items-center gap-2">
-                <XCircle className="w-4 h-4 text-red-500" />
-                <span className="text-slate-600">Negative Marks: <span className="font-bold text-red-500">−{score.negativeMarks}</span></span>
+                <span className="text-slate-600">Marks Scored: <span className="font-bold text-emerald-600">{score.totalMarks}</span></span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-slate-400" />
@@ -177,7 +170,7 @@ export default function ResultsPage() {
             Return to Dashboard
           </Link>
           <Link
-            to={`/review/${id}`}
+            to={`/review/${encodeURIComponent(id)}`}
             className="flex-1 py-3.5 px-6 rounded-xl bg-blue-900 text-white font-semibold hover:bg-blue-800 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 btn-press"
           >
             Review Answers

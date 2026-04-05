@@ -12,7 +12,7 @@ export default function ReviewPage() {
     const stored = localStorage.getItem('lastTestResult');
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (String(parsed.testId) === String(id)) {
+      if (parsed.testId === id) {
         setResult(parsed);
       } else {
         navigate('/');
@@ -40,16 +40,6 @@ export default function ReviewPage() {
 
   const { questions, answers, score } = result;
 
-  const getOptionLabel = (key) => {
-    switch (key) {
-      case 'A': return 'option_a';
-      case 'B': return 'option_b';
-      case 'C': return 'option_c';
-      case 'D': return 'option_d';
-      default: return '';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Sticky Header */}
@@ -60,7 +50,7 @@ export default function ReviewPage() {
             <p className="text-xs sm:text-sm text-slate-400">Detailed analysis and explanations</p>
           </div>
           <Link
-            to={`/results/${id}`}
+            to={`/results/${encodeURIComponent(id)}`}
             className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-blue-900 transition-colors border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -95,9 +85,9 @@ export default function ReviewPage() {
       {/* Questions List */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {questions.map((q, index) => {
-          const userAnswer = answers[q.id];
+          const userAnswer = answers[q._id];
           const isCorrect = userAnswer === q.correct_answer;
-          const isSkipped = !userAnswer;
+          const isSkipped = userAnswer === undefined;
           const options = [
             { key: 'A', text: q.option_a },
             { key: 'B', text: q.option_b },
@@ -107,7 +97,7 @@ export default function ReviewPage() {
 
           return (
             <div
-              key={q.id}
+              key={index}
               className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in-up"
             >
               {/* Question Header */}
@@ -128,7 +118,7 @@ export default function ReviewPage() {
                 ) : (
                   <span className="flex items-center gap-1.5 text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg">
                     <XCircle className="w-3.5 h-3.5" />
-                    Incorrect ({isSkipped ? '0' : `-${q.negative_marks}`})
+                    Incorrect (0)
                   </span>
                 )}
               </div>
@@ -171,7 +161,7 @@ export default function ReviewPage() {
               </div>
 
               {/* Explanation */}
-              {q.explanation && (
+              {q.explanation && q.explanation.trim() !== '' && (
                 <div className="mx-5 sm:mx-6 mb-5 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3.5">
                   <div className="flex items-start gap-2">
                     <BookOpen className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -191,7 +181,7 @@ export default function ReviewPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-12">
         <div className="flex flex-col sm:flex-row gap-3">
           <Link
-            to={`/results/${id}`}
+            to={`/results/${encodeURIComponent(id)}`}
             className="flex-1 py-3.5 px-6 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 transition-all flex items-center justify-center gap-2 btn-press"
           >
             <ChevronLeft className="w-4 h-4" />

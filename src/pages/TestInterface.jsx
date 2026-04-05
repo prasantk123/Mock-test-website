@@ -5,7 +5,7 @@ import QuestionCard from '../components/QuestionCard';
 import QuestionPalette from '../components/QuestionPalette';
 
 export default function TestInterface() {
-  const { id } = useParams();
+  const { id } = useParams(); // id is now the filename, e.g. "mock_test_1.json"
   const navigate = useNavigate();
 
   const [testData, setTestData] = useState(null);
@@ -24,19 +24,27 @@ export default function TestInterface() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`/data/mock_test_${id}.json`);
+        const response = await fetch(`/data/${id}`);
         if (!response.ok) throw new Error('Test not found');
         const data = await response.json();
         setTestData(data.mock_test);
-        setQuestions(data.questions);
+
+        // Assign sequential IDs if not present
+        const questionsWithIds = data.questions.map((q, i) => ({
+          ...q,
+          _id: i, // internal ID for tracking
+          marks: q.marks || 1,
+        }));
+
+        setQuestions(questionsWithIds);
         setTimeLeft(data.mock_test.duration * 60);
 
         // Initialize question status
         const initialStatus = {};
-        data.questions.forEach((_, i) => {
+        questionsWithIds.forEach((_, i) => {
           initialStatus[i] = 'not-visited';
         });
-        initialStatus[0] = 'not-answered'; // First question is visited
+        initialStatus[0] = 'not-answered';
         setQuestionStatus(initialStatus);
         setLoading(false);
       } catch (err) {
@@ -66,43 +74,40 @@ export default function TestInterface() {
   }, [loading, submitted]);
 
   const saveAndNavigate = useCallback((isAutoSubmit = false) => {
-    // Calculate score
     let correct = 0;
     let wrong = 0;
     let unanswered = 0;
     let totalMarks = 0;
-    let negativeMarks = 0;
 
     questions.forEach((q) => {
-      if (answers[q.id]) {
-        if (answers[q.id] === q.correct_answer) {
+      if (answers[q._id] !== undefined) {
+        if (answers[q._id] === q.correct_answer) {
           correct++;
           totalMarks += q.marks;
         } else {
           wrong++;
-          negativeMarks += q.negative_marks;
         }
       } else {
         unanswered++;
       }
     });
 
-    const finalScore = totalMarks - negativeMarks;
-    const marksPerQuestion = questions.length > 0 ? questions[0].marks : 4;
+    const maxMarks = questions.reduce((sum, q) => sum + q.marks, 0);
     const timeTaken = testData ? (testData.duration * 60) - timeLeft : 0;
 
     // Subject-wise breakdown
     const subjectMap = {};
     questions.forEach((q) => {
-      if (!subjectMap[q.subject]) {
-        subjectMap[q.subject] = { name: q.subject, correct: 0, wrong: 0, total: 0 };
+      const subject = q.subject || 'General';
+      if (!subjectMap[subject]) {
+        subjectMap[subject] = { name: subject, correct: 0, wrong: 0, total: 0 };
       }
-      subjectMap[q.subject].total++;
-      if (answers[q.id]) {
-        if (answers[q.id] === q.correct_answer) {
-          subjectMap[q.subject].correct++;
+      subjectMap[subject].total++;
+      if (answers[q._id] !== undefined) {
+        if (answers[q._id] === q.correct_answer) {
+          subjectMap[subject].correct++;
         } else {
-          subjectMap[q.subject].wrong++;
+          subjectMap[subject].wrong++;
         }
       }
     });
@@ -112,14 +117,21 @@ export default function TestInterface() {
       testData,
       questions,
       answers,
-      score: { correct, wrong, unanswered, totalMarks, negativeMarks, finalScore, totalQuestions: questions.length, marksPerQuestion },
+      score: {
+        correct,
+        wrong,
+        unanswered,
+        totalMarks,
+        finalScore: totalMarks,
+        totalQuestions: questions.length,
+        maxMarks,
+      },
       subjectWise: Object.values(subjectMap),
       timeTaken,
       timestamp: new Date().toISOString(),
       autoSubmitted: isAutoSubmit,
     };
 
-    // Save to localStorage
     localStorage.setItem('lastTestResult', JSON.stringify(resultData));
 
     // Save to attempt history
@@ -127,18 +139,18 @@ export default function TestInterface() {
     const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
     history.push({
       attemptNumber: history.length + 1,
-      score: finalScore,
-      maxMarks: questions.length * marksPerQuestion,
+      score: totalMarks,
+      maxMarks,
       correct,
       wrong,
       unanswered,
-      percentage: Math.max(0, Math.round((finalScore / (questions.length * marksPerQuestion)) * 100)),
+      percentage: maxMarks > 0 ? Math.round((totalMarks / maxMarks) * 100) : 0,
       timeTaken,
       timestamp: new Date().toISOString(),
     });
     localStorage.setItem(historyKey, JSON.stringify(history));
 
-    navigate(`/results/${id}`);
+    navigate(`/results/${encodeURIComponent(id)}`);
   }, [questions, answers, testData, timeLeft, id, navigate]);
 
   const handleAutoSubmit = () => {
@@ -154,12 +166,12 @@ export default function TestInterface() {
   };
 
   const handleOptionSelect = (optionKey) => {
-    setAnswers((prev) => ({ ...prev, [questions[currentQuestionIndex].id]: optionKey }));
+    setAnswers((prev) => ({ ...prev, [questions[currentQuestionIndex]._id]: optionKey }));
   };
 
   const handleSaveAndNext = () => {
-    const qId = questions[currentQuestionIndex].id;
-    const hasAnswer = answers[qId];
+    const qId = questions[currentQuestionIndex]._id;
+    const hasAnswer = answers[qId] !== undefined;
 
     setQuestionStatus((prev) => ({
       ...prev,
@@ -169,7 +181,6 @@ export default function TestInterface() {
     if (currentQuestionIndex < questions.length - 1) {
       const nextIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(nextIndex);
-      // Mark next as visited if not-visited
       setQuestionStatus((prev) => ({
         ...prev,
         [nextIndex]: prev[nextIndex] === 'not-visited' ? 'not-answered' : prev[nextIndex],
@@ -199,7 +210,7 @@ export default function TestInterface() {
   };
 
   const handleClearResponse = () => {
-    const qId = questions[currentQuestionIndex].id;
+    const qId = questions[currentQuestionIndex]._id;
     setAnswers((prev) => {
       const newAnswers = { ...prev };
       delete newAnswers[qId];
@@ -262,7 +273,7 @@ export default function TestInterface() {
   }
 
   const currentQuestion = questions[currentQuestionIndex];
-  const isCritical = timeLeft <= 300; // 5 minutes
+  const isCritical = timeLeft <= 300;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -270,7 +281,6 @@ export default function TestInterface() {
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-full mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-14">
-            {/* Left - Section */}
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate('/')}
@@ -280,12 +290,11 @@ export default function TestInterface() {
               </button>
               <div className="hidden sm:block">
                 <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Section:</span>
-                <span className="ml-2 text-sm font-bold text-blue-900">{currentQuestion.subject}</span>
+                <span className="ml-2 text-sm font-bold text-blue-900">{currentQuestion.subject || 'General'}</span>
               </div>
-              <span className="sm:hidden text-xs font-bold text-blue-900 uppercase">{currentQuestion.subject}</span>
+              <span className="sm:hidden text-xs font-bold text-blue-900 uppercase">{currentQuestion.subject || 'General'}</span>
             </div>
 
-            {/* Right - Timer + Palette Toggle */}
             <div className="flex items-center gap-3">
               <div className={`bg-blue-50 px-4 py-2 rounded-xl flex items-center gap-2 border border-blue-100 ${isCritical ? 'timer-critical bg-red-50 border-red-200' : ''}`}>
                 <Clock className={`w-4 h-4 ${isCritical ? 'text-red-500' : 'text-blue-900'}`} />
@@ -306,7 +315,6 @@ export default function TestInterface() {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Question Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
@@ -320,10 +328,7 @@ export default function TestInterface() {
                 </h2>
                 <div className="flex items-center gap-3">
                   <span className="text-emerald-500 font-bold text-sm bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
-                    +{currentQuestion.marks} Marks
-                  </span>
-                  <span className="text-red-500 font-bold text-sm bg-red-50 px-3 py-1 rounded-lg border border-red-200">
-                    −{currentQuestion.negative_marks} Mark
+                    +{currentQuestion.marks} Mark{currentQuestion.marks > 1 ? 's' : ''}
                   </span>
                 </div>
               </div>
@@ -332,7 +337,7 @@ export default function TestInterface() {
               <QuestionCard
                 key={currentQuestionIndex}
                 question={currentQuestion}
-                selectedOption={answers[currentQuestion.id]}
+                selectedOption={answers[currentQuestion._id]}
                 onOptionSelect={handleOptionSelect}
               />
             </div>
@@ -376,7 +381,7 @@ export default function TestInterface() {
           </div>
         </div>
 
-        {/* Desktop Sidebar Palette */}
+        {/* Desktop Sidebar */}
         <div className="hidden lg:block w-72 border-l border-slate-200 bg-white">
           <QuestionPalette
             totalQuestions={questions.length}
@@ -388,20 +393,14 @@ export default function TestInterface() {
         </div>
       </div>
 
-      {/* Mobile Palette Overlay */}
+      {/* Mobile Palette */}
       {showPalette && (
         <>
-          <div
-            className="fixed inset-0 bg-black/40 z-50 fade-in lg:hidden"
-            onClick={() => setShowPalette(false)}
-          />
+          <div className="fixed inset-0 bg-black/40 z-50 fade-in lg:hidden" onClick={() => setShowPalette(false)} />
           <div className="fixed top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-white z-50 shadow-2xl slide-in-right lg:hidden">
             <div className="flex items-center justify-between p-4 border-b border-slate-200">
               <h3 className="font-bold text-slate-800">Navigation</h3>
-              <button
-                onClick={() => setShowPalette(false)}
-                className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
-              >
+              <button onClick={() => setShowPalette(false)} className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
                 <X className="w-4 h-4 text-slate-600" />
               </button>
             </div>
@@ -430,7 +429,6 @@ export default function TestInterface() {
               Are you sure you want to submit? You won't be able to change your answers after submission.
             </p>
 
-            {/* Quick Stats */}
             <div className="bg-slate-50 rounded-xl p-4 mb-6 space-y-2">
               {(() => {
                 let answered = 0, notAnswered = 0, marked = 0, notVisited = 0;

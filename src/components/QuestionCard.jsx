@@ -31,7 +31,7 @@ export default function QuestionCard({ question, selectedOption, onOptionSelect 
             >
               <input
                 type="radio"
-                name={`question-${question.id}`}
+                name={`question-${question._id}`}
                 className="option-radio"
                 checked={isSelected}
                 onChange={() => onOptionSelect(option.key)}

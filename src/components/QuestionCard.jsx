@@ -1,3 +1,5 @@
+import LatexText from './LatexText';
+
 export default function QuestionCard({ question, selectedOption, onOptionSelect }) {
   const options = [
     { key: 'A', text: question.option_a },
@@ -10,9 +12,9 @@ export default function QuestionCard({ question, selectedOption, onOptionSelect 
     <div className="animate-fade-in-up">
       {/* Question Text */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 mb-5 shadow-sm">
-        <p className="text-slate-800 text-base sm:text-lg leading-relaxed font-medium">
-          {question.question_text}
-        </p>
+        <div className="text-slate-800 text-base sm:text-lg leading-relaxed font-medium">
+          <LatexText text={question.question_text} />
+        </div>
       </div>
 
       {/* Options */}
@@ -43,11 +45,11 @@ export default function QuestionCard({ question, selectedOption, onOptionSelect 
               }`}>
                 {option.key}
               </span>
-              <span className={`text-sm sm:text-base transition-colors ${
+              <div className={`text-sm sm:text-base transition-colors ${
                 isSelected ? 'text-blue-900 font-medium' : 'text-slate-700'
               }`}>
-                {option.text}
-              </span>
+                <LatexText text={option.text} />
+              </div>
             </label>
           );
         })}

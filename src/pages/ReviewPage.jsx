@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, CheckCircle2, XCircle, MinusCircle, BookOpen, ArrowUp } from 'lucide-react';
+import LatexText from '../components/LatexText';
 
 export default function ReviewPage() {
   const { id } = useParams();
@@ -125,9 +126,9 @@ export default function ReviewPage() {
 
               {/* Question Text */}
               <div className="px-5 sm:px-6 pb-4">
-                <p className="text-sm sm:text-base text-slate-800 font-medium leading-relaxed">
-                  {q.question_text}
-                </p>
+                <div className="text-sm sm:text-base text-slate-800 font-medium leading-relaxed">
+                  <LatexText text={q.question_text} />
+                </div>
               </div>
 
               {/* Options */}
@@ -153,7 +154,7 @@ export default function ReviewPage() {
                       key={opt.key}
                       className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm ${optionClasses} transition-all`}
                     >
-                      <span>{opt.text}</span>
+                      <div className="flex-1 overflow-x-auto"><LatexText text={opt.text} /></div>
                       {icon}
                     </div>
                   );
@@ -167,7 +168,7 @@ export default function ReviewPage() {
                     <BookOpen className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Explanation</p>
-                      <p className="text-sm text-blue-700 leading-relaxed">{q.explanation}</p>
+                      <div className="text-sm text-blue-700 leading-relaxed"><LatexText text={q.explanation} /></div>
                     </div>
                   </div>
                 </div>

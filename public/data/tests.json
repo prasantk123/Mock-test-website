@@ -1,6 +1,7 @@
 {
   "tests": [
     "mock_test_1.json",
-    "set 1.assamprep_mock.json"
+    "set 1.assamprep_mock.json",
+    "Mock_Test_3_mock.json"
   ]
 }

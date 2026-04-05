@@ -1,13 +1,35 @@
+import React, { Component } from 'react';
 import Latex from 'react-latex-next';
+
+class LatexErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("LaTeX Rendering Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // Fallback UI
+      return <span>{this.props.rawText}</span>;
+    }
+    return this.props.children;
+  }
+}
 
 export default function LatexText({ text }) {
   if (!text) return null;
 
-  // Convert markdown **bold** to KaTeX \textbf{bold} recursively or just simply
-  // so it renders correctly natively inside react-latex-next
-  const processedText = text.toString().replace(/\*\*(.*?)\*\*/g, '$\\textbf{$1}$');
+  // Use \mathbf instead of \textbf, sometimes \textbf is problematic
+  const processedText = text.toString().replace(/\*\*(.*?)\*\*/g, '$\\mathbf{$1}$');
 
-  // Define delimiters explicitly to ensure $...$ works
   const delimiters = [
     { left: '$$', right: '$$', display: true },
     { left: '\\(', right: '\\)', display: false },
@@ -16,12 +38,14 @@ export default function LatexText({ text }) {
   ];
 
   return (
-    <Latex 
-      delimiters={delimiters}
-      strict="ignore"
-      throwOnError={false}
-    >
-      {processedText}
-    </Latex>
+    <LatexErrorBoundary rawText={text.toString()}>
+      <Latex 
+        delimiters={delimiters}
+        strict="ignore"
+        throwOnError={false}
+      >
+        {processedText}
+      </Latex>
+    </LatexErrorBoundary>
   );
 }

@@ -51,7 +51,7 @@ export default function TestInterface() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`${import.meta.env.BASE_URL}data/${id}`);
+        const response = await fetch(`${import.meta.env.BASE_URL}data/${id}?t=${Date.now()}`);
         if (!response.ok) throw new Error('Test not found');
         const data = await response.json();
         setTestData(data.mock_test);

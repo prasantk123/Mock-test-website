@@ -13,7 +13,7 @@ export default function Dashboard() {
     const fetchTests = async () => {
       try {
         // Fetch the manifest
-        const manifestRes = await fetch(`${import.meta.env.BASE_URL}data/tests.json`);
+        const manifestRes = await fetch(`${import.meta.env.BASE_URL}data/tests.json?t=${Date.now()}`);
         if (!manifestRes.ok) throw new Error('Could not load test list');
         const manifest = await manifestRes.json();
 
@@ -22,7 +22,7 @@ export default function Dashboard() {
         for (let i = 0; i < manifest.tests.length; i++) {
           const fileName = manifest.tests[i];
           try {
-            const testRes = await fetch(`${import.meta.env.BASE_URL}data/${fileName}`);
+            const testRes = await fetch(`${import.meta.env.BASE_URL}data/${fileName}?t=${Date.now()}`);
             if (!testRes.ok) continue;
             const testData = await testRes.json();
             tests.push({

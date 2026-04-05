@@ -19,6 +19,33 @@ export default function TestInterface() {
   const [showPalette, setShowPalette] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+
+  // Handle browser back and reload
+  useEffect(() => {
+    if (loading || submitted) return;
+
+    window.history.pushState(null, null, window.location.pathname);
+
+    const handlePopState = (e) => {
+      e.preventDefault();
+      setShowExitModal(true);
+      window.history.pushState(null, null, window.location.pathname);
+    };
+
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [loading, submitted]);
 
   // Fetch test data
   useEffect(() => {
@@ -283,7 +310,7 @@ export default function TestInterface() {
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => setShowExitModal(true)}
                 className="text-slate-400 hover:text-slate-600 transition-colors lg:hidden"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -475,6 +502,39 @@ export default function TestInterface() {
                 className="flex-1 py-3 px-4 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/25 btn-press"
               >
                 Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exit Confirmation Modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in-up">
+            <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-7 h-7 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 text-center mb-2">Exit Test?</h3>
+            <p className="text-slate-500 text-center text-sm mb-6">
+              Are you sure you want to exit the test? Your progress will be lost and the test will not be saved.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowExitModal(false)}
+                className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors btn-press"
+              >
+                Resume
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitModal(false);
+                  navigate('/');
+                }}
+                className="flex-1 py-3 px-4 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors shadow-lg shadow-red-500/25 btn-press"
+              >
+                Exit
               </button>
             </div>
           </div>

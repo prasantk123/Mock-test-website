@@ -2,6 +2,12 @@ import Latex from 'react-latex-next';
 
 export default function LatexText({ text }) {
   if (!text) return null;
-  // react-latex-next handles $...$ for inline and $$...$$ for block math automatically
-  return <Latex>{text.toString()}</Latex>;
+  // Define delimiters explicitly to ensure $...$ works
+  const delimiters = [
+    { left: '$$', right: '$$', display: true },
+    { left: '\\(', right: '\\)', display: false },
+    { left: '$', right: '$', display: false },
+    { left: '\\[', right: '\\]', display: true },
+  ];
+  return <Latex delimiters={delimiters}>{text.toString()}</Latex>;
 }

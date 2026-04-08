@@ -70,7 +70,6 @@ export default function AdminDashboard() {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
-      img.crossOrigin = "anonymous";
       
       img.onload = () => {
         try {
@@ -122,8 +121,8 @@ export default function AdminDashboard() {
         alert("Failed to load the certificate template image. Make sure '/certificate of Completion.png' exists in the public directory.");
       };
 
-      // Set URL (use standard encoding for spaces to ensure server loads it)
-      img.src = '/certificate%20of%20Completion.png';
+      // Ensure exact case and spacing matching the file system in Vite.
+      img.src = '/certificate of Completion.png';
     } catch (err) {
       console.error("Certificate generation error:", err);
       alert("An unexpected error occurred while creating the certificate.");

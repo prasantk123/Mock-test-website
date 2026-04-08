@@ -182,11 +182,21 @@ export default function AdminDashboard() {
     (r.testTitle || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredUsers = usersList.filter(u => 
-    (u.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (u.lastName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (u.phoneNumber || '').includes(searchTerm)
-  );
+  const filteredUsers = usersList
+    .filter(u => 
+      (u.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (u.lastName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (u.phoneNumber || '').includes(searchTerm)
+    )
+    .sort((a, b) => {
+      const getTime = (user) => {
+        if (!user.lastLogin) return 0;
+        if (user.lastLogin.toDate) return user.lastLogin.toDate().getTime();
+        if (typeof user.lastLogin === 'number') return user.lastLogin;
+        return 0;
+      };
+      return getTime(b) - getTime(a); // Descending (latest first)
+    });
 
   // Grouping by User then by Mock Test
   const groupedResults = filteredResults.reduce((acc, curr) => {

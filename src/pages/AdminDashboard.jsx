@@ -78,11 +78,11 @@ export default function AdminDashboard() {
           ctx.drawImage(img, 0, 0, img.width, img.height);
           
           // Configure Name Font - Beautiful Elegant Cursive Font
-          // Uses standard cursive fallbacks available natively on Windows/Mac, matching the requested Edwardian style
-          ctx.font = '100px "Great Vibes", "Edwardian Script ITC", "Vivaldi", "Snell Roundhand", "Brush Script MT", cursive';
+          // Increased font size dramatically (140px) because cursive fonts need it to look substantial
+          ctx.font = '140px "Great Vibes", "Edwardian Script ITC", "Vivaldi", "Snell Roundhand", "Brush Script MT", cursive';
           ctx.fillStyle = '#9e7421'; // Deep elegant gold
           ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom'; // This ensures the text rests precisely ON the line
+          ctx.textBaseline = 'middle'; // Center it vertically in the empty space
           
           // Lookup user in usersList to guarantee we have their true full name
           const userRecord = usersList.find(u => u.phoneNumber === attempt.phoneNumber);
@@ -100,8 +100,8 @@ export default function AdminDashboard() {
           
           const displayName = rawName ? toTitleCase(rawName) : 'Student';
           
-          // Name placement: canvas.height * 0.473 aligns the bottom of the elegant cursive loops nicely on the line
-          ctx.fillText(displayName, canvas.width / 2, canvas.height * 0.473);
+          // Name placement: canvas.height * 0.46 pushes it down beautifully into the center of the gap
+          ctx.fillText(displayName, canvas.width / 2, canvas.height * 0.46);
 
           // --- Removing overlapping 'Test Title' and 'Score' text that clashed with your template's body ---
 

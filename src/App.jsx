@@ -4,6 +4,7 @@ import TestInterface from './pages/TestInterface';
 import ResultsPage from './pages/ResultsPage';
 import ReviewPage from './pages/ReviewPage';
 import LoginPage from './pages/LoginPage';
+import AdminDashboard from './pages/AdminDashboard';
 import { UserProvider, useUser } from './context/UserContext';
 
 // Protected Route Component
@@ -41,6 +42,7 @@ function App() {
               <ReviewPage />
             </ProtectedRoute>
           } />
+          <Route path="/admin" element={<AdminDashboard />} />
         </Routes>
       </Router>
     </UserProvider>

@@ -66,47 +66,68 @@ export default function AdminDashboard() {
   };
 
   const downloadCertificateForAttempt = (attempt) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.src = '/certificate of Completion.png';
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0, img.width, img.height);
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = "anonymous";
       
-      // Configure Name Font - Yellow
-      ctx.font = 'bold 80px "Playfair Display", "Times New Roman", serif';
-      ctx.fillStyle = '#facc15'; // Bright Yellow
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      const fullName = `${attempt.firstName || ''} ${attempt.lastName || ''}`.trim();
-      const displayName = fullName ? fullName : 'Student';
-      
-      // Name placement slightly below center (typical for templates)
-      ctx.fillText(displayName.toUpperCase(), canvas.width / 2, canvas.height * 0.48);
+      img.onload = () => {
+        try {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0, img.width, img.height);
+          
+          // Configure Name Font - Yellow
+          ctx.font = 'bold 80px "Playfair Display", "Times New Roman", serif';
+          ctx.fillStyle = '#facc15'; // Bright Yellow
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          
+          const fullName = `${attempt.firstName || ''} ${attempt.lastName || ''}`.trim();
+          const displayName = fullName ? fullName : 'Student';
+          
+          // Name placement slightly below center (typical for templates)
+          ctx.fillText(displayName.toUpperCase(), canvas.width / 2, canvas.height * 0.48);
 
-      // Additional Details
-      ctx.font = 'italic 32px "Playfair Display", "Times New Roman", serif';
-      ctx.fillStyle = '#f8fafc'; // Off-white for subtitle
-      const testTitle = attempt.testTitle || 'Mock Test';
-      ctx.fillText(`for successfully completing the ${testTitle}`, canvas.width / 2, canvas.height * 0.58);
-      
-      ctx.font = 'bold 24px "Playfair Display", "Times New Roman", serif';
-      ctx.fillStyle = '#cbd5e1'; 
-      ctx.fillText(`Score: ${attempt.percentage}%`, canvas.width / 2, canvas.height * 0.63);
+          // Additional Details
+          ctx.font = 'italic 32px "Playfair Display", "Times New Roman", serif';
+          ctx.fillStyle = '#f8fafc'; // Off-white for subtitle
+          const testTitle = attempt.testTitle || 'Mock Test';
+          ctx.fillText(`for successfully completing the ${testTitle}`, canvas.width / 2, canvas.height * 0.58);
+          
+          ctx.font = 'bold 24px "Playfair Display", "Times New Roman", serif';
+          ctx.fillStyle = '#cbd5e1'; 
+          ctx.fillText(`Score: ${attempt.percentage}%`, canvas.width / 2, canvas.height * 0.63);
 
-      ctx.font = 'bold 24px "Playfair Display", "Times New Roman", serif';
-      ctx.fillText(attempt.date, canvas.width * 0.28, canvas.height * 0.77);
+          ctx.font = 'bold 24px "Playfair Display", "Times New Roman", serif';
+          ctx.fillText(attempt.date || '', canvas.width * 0.28, canvas.height * 0.77);
 
-      // Trigger Download
-      const link = document.createElement('a');
-      link.download = `Certificate_${displayName.replace(/\s+/g, '_')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    };
+          // Trigger Download
+          const link = document.createElement('a');
+          link.download = `Certificate_${displayName.replace(/[^a-zA-Z0-9_\s]/g, '').replace(/\s+/g, '_')}.png`;
+          link.href = canvas.toDataURL('image/png', 1.0);
+          
+          // Append to body, click, then remove (required by some browsers)
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (e) {
+          console.error("Canvas drawing error:", e);
+          alert("Error generating certificate: " + e.message);
+        }
+      };
+
+      img.onerror = () => {
+        alert("Failed to load the certificate template image. Make sure '/certificate of Completion.png' exists in the public directory.");
+      };
+
+      // Set URL (use standard encoding for spaces to ensure server loads it)
+      img.src = '/certificate%20of%20Completion.png';
+    } catch (err) {
+      console.error("Certificate generation error:", err);
+      alert("An unexpected error occurred while creating the certificate.");
+    }
   };
 
   const downloadCSV = () => {

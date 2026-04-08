@@ -77,17 +77,31 @@ export default function AdminDashboard() {
           canvas.height = img.height;
           ctx.drawImage(img, 0, 0, img.width, img.height);
           
-          // Configure Name Font - Beautiful Golden Yellow
-          ctx.font = 'bold 64px Georgia, "Times New Roman", serif';
-          ctx.fillStyle = '#ca8a04'; // Premium golden yellow
+          // Configure Name Font - Beautiful Elegant Cursive Font
+          // Uses standard cursive fallbacks available natively on Windows/Mac, matching the requested Edwardian style
+          ctx.font = '100px "Great Vibes", "Edwardian Script ITC", "Vivaldi", "Snell Roundhand", "Brush Script MT", cursive';
+          ctx.fillStyle = '#9e7421'; // Deep elegant gold
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom'; // This ensures the text rests precisely ON the line
           
-          const fullName = `${attempt.firstName || ''} ${attempt.lastName || ''}`.trim();
-          const displayName = fullName ? fullName : 'Student';
+          // Lookup user in usersList to guarantee we have their true full name
+          const userRecord = usersList.find(u => u.phoneNumber === attempt.phoneNumber);
+          let rawName = attempt.firstName || '';
+          if (userRecord && userRecord.lastName) {
+             rawName = `${userRecord.firstName || attempt.firstName} ${userRecord.lastName}`.trim();
+          } else if (attempt.lastName) {
+             rawName = `${attempt.firstName} ${attempt.lastName}`.trim();
+          }
           
-          // Name placement: canvas.height * 0.478 aligns the bottom of the text perfectly on the template's black line
-          ctx.fillText(displayName.toUpperCase(), canvas.width / 2, canvas.height * 0.478);
+          // Cursive fonts ONLY look good in Title Case, avoid all-caps!
+          const toTitleCase = (str) => {
+             return str.toLowerCase().split(/\s+/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+          };
+          
+          const displayName = rawName ? toTitleCase(rawName) : 'Student';
+          
+          // Name placement: canvas.height * 0.473 aligns the bottom of the elegant cursive loops nicely on the line
+          ctx.fillText(displayName, canvas.width / 2, canvas.height * 0.473);
 
           // --- Removing overlapping 'Test Title' and 'Score' text that clashed with your template's body ---
 

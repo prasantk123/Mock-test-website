@@ -77,30 +77,31 @@ export default function AdminDashboard() {
           canvas.height = img.height;
           ctx.drawImage(img, 0, 0, img.width, img.height);
           
-          // Configure Name Font - Yellow
-          ctx.font = 'bold 80px "Playfair Display", "Times New Roman", serif';
-          ctx.fillStyle = '#facc15'; // Bright Yellow
+          // Configure Name Font - Beautiful Golden Yellow
+          ctx.font = 'bold 64px Georgia, "Times New Roman", serif';
+          ctx.fillStyle = '#ca8a04'; // Premium golden yellow
           ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
+          ctx.textBaseline = 'bottom'; // This ensures the text rests precisely ON the line
           
           const fullName = `${attempt.firstName || ''} ${attempt.lastName || ''}`.trim();
           const displayName = fullName ? fullName : 'Student';
           
-          // Name placement slightly below center (typical for templates)
-          ctx.fillText(displayName.toUpperCase(), canvas.width / 2, canvas.height * 0.48);
+          // Name placement: canvas.height * 0.478 aligns the bottom of the text perfectly on the template's black line
+          ctx.fillText(displayName.toUpperCase(), canvas.width / 2, canvas.height * 0.478);
 
-          // Additional Details
-          ctx.font = 'italic 32px "Playfair Display", "Times New Roman", serif';
-          ctx.fillStyle = '#f8fafc'; // Off-white for subtitle
-          const testTitle = attempt.testTitle || 'Mock Test';
-          ctx.fillText(`for successfully completing the ${testTitle}`, canvas.width / 2, canvas.height * 0.58);
-          
-          ctx.font = 'bold 24px "Playfair Display", "Times New Roman", serif';
-          ctx.fillStyle = '#cbd5e1'; 
-          ctx.fillText(`Score: ${attempt.percentage}%`, canvas.width / 2, canvas.height * 0.63);
+          // --- Removing overlapping 'Test Title' and 'Score' text that clashed with your template's body ---
 
-          ctx.font = 'bold 24px "Playfair Display", "Times New Roman", serif';
-          ctx.fillText(attempt.date || '', canvas.width * 0.28, canvas.height * 0.77);
+          // Erase the pre-printed "Date : ___/____/2026" at the bottom right using a white box
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(canvas.width * 0.55, canvas.height * 0.95, canvas.width * 0.3, canvas.height * 0.05);
+
+          // Write the dynamic date exactly where the template date used to be
+          const dateOnly = (attempt.date || '').split(',')[0].trim(); // e.g. "08 Apr 2026"
+          ctx.font = 'bold 24px Georgia, "Times New Roman", serif';
+          ctx.fillStyle = '#333333'; // Match the template's dark grey/black font
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(`Date: ${dateOnly}`, canvas.width * 0.68, canvas.height * 0.985);
 
           // Trigger Download
           const link = document.createElement('a');

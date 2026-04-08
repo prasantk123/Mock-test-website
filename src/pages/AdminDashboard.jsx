@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Lock, Download, Users, CheckCircle, Search, FileSpreadsheet } from 'lucide-react';
+import { Lock, Download, Users, CheckCircle, Search, FileSpreadsheet, Eye, X } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -11,6 +11,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('results'); // 'results' | 'users'
+  const [selectedAttempt, setSelectedAttempt] = useState(null);
 
   // The passcode to access the admin portal. You can change this below.
   const ADMIN_PASSCODE = 'admin123';
@@ -335,11 +336,12 @@ export default function AdminDashboard() {
                                   <th className="p-3 text-center">Wrong</th>
                                   <th className="p-3 text-center">Skipped</th>
                                   <th className="p-3 text-right pr-4">Time Taken</th>
+                                  <th className="p-3 text-center w-12">Details</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 text-sm">
                                 {test.attempts.map((attempt, index) => (
-                                  <tr key={attempt.id} className="hover:bg-slate-50 transition-colors">
+                                  <tr key={attempt.id} className="hover:bg-slate-50 transition-colors group">
                                     <td className="p-3 pl-4 font-semibold text-slate-700 whitespace-nowrap">
                                       Attempt {index + 1}
                                     </td>
@@ -374,6 +376,15 @@ export default function AdminDashboard() {
                                     <td className="p-3 pr-4 text-right font-mono text-slate-600 whitespace-nowrap">
                                       {formatTime(attempt.timeTaken || 0)}
                                     </td>
+                                    <td className="p-3 text-center">
+                                      <button 
+                                        onClick={() => setSelectedAttempt(attempt)}
+                                        className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                        title="View detailed response time analysis"
+                                      >
+                                        <Eye className="w-5 h-5" />
+                                      </button>
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -389,6 +400,103 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+
+      {/* Detailed Attempt Modal */}
+      {selectedAttempt && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] shadow-2xl flex flex-col slide-in-bottom filter drop-shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+               <div>
+                 <h3 className="text-xl font-bold text-slate-800">Attempt Details</h3>
+                 <div className="flex items-center gap-2 mt-1">
+                   <span className="text-sm font-semibold text-blue-900 bg-blue-50 px-2 py-0.5 rounded capitalize">{selectedAttempt.firstName}</span>
+                   <span className="text-sm text-slate-500">•</span>
+                   <span className="text-sm font-semibold text-slate-700">{selectedAttempt.testTitle}</span>
+                   <span className="text-sm text-slate-500">•</span>
+                   <span className="text-sm text-slate-500">{selectedAttempt.date}</span>
+                 </div>
+               </div>
+               <button 
+                 onClick={() => setSelectedAttempt(null)}
+                 className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors shadow-sm"
+               >
+                 <X className="w-5 h-5 text-slate-500" />
+               </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      <th className="p-4 pl-6 w-16">Q.No</th>
+                      <th className="p-4 min-w-[200px]">Question Snippet</th>
+                      <th className="p-4 text-center">Correct Answer</th>
+                      <th className="p-4 text-center">User Answer</th>
+                      <th className="p-4 text-right pr-6">Time Spent</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {selectedAttempt.questions && selectedAttempt.questions.length > 0 ? (
+                      selectedAttempt.questions.map((q, idx) => {
+                        const userAnswer = selectedAttempt.answers && selectedAttempt.answers[q._id];
+                        const isCorrect = userAnswer === q.correct_answer;
+                        const isUnanswered = userAnswer === undefined;
+                        const timeSpent = selectedAttempt.questionTimes && selectedAttempt.questionTimes[q._id] 
+                          ? selectedAttempt.questionTimes[q._id] : 0;
+                          
+                        let snippet = (q.text || '').replace(/\*\*/g, '').replace(/\$\$/g, '').substring(0, 60);
+                        if (snippet.length === 60) snippet += '...';
+                        if (!snippet && q.image) snippet = "[Image or Math Equation]";
+
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-4 pl-6 font-medium text-slate-500">{idx + 1}</td>
+                            <td className="p-4 text-slate-700">{snippet}</td>
+                            <td className="p-4 text-center">
+                              <span className="inline-block px-2 py-1 bg-emerald-50 text-emerald-700 rounded ring-1 ring-emerald-200 font-mono text-xs">
+                                Option {q.correct_answer}
+                              </span>
+                            </td>
+                            <td className="p-4 text-center">
+                              {isUnanswered ? (
+                                <span className="text-slate-400 text-xs font-medium">Skipped</span>
+                              ) : (
+                                <span className={`inline-block px-2 py-1 rounded ring-1 font-mono text-xs ${isCorrect ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-red-50 text-red-700 ring-red-200'}`}>
+                                  Option {userAnswer}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-4 pr-6 text-right font-mono font-medium text-slate-600">
+                              {formatTime(timeSpent)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                         <td colSpan="5" className="p-8 text-center text-slate-500">
+                           No detailed question tracking available for this attempt.
+                         </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div className="bg-white border-t border-slate-100 p-4 sm:p-6 flex justify-end">
+               <button 
+                 onClick={() => setSelectedAttempt(null)}
+                 className="bg-blue-900 text-white font-semibold py-2 px-6 rounded-xl hover:bg-blue-800 transition-all shadow-md hover:shadow-lg"
+               >
+                 Close Details
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

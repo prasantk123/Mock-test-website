@@ -21,6 +21,7 @@ export default function TestInterface() {
   const [answers, setAnswers] = useState({});
   const [questionStatus, setQuestionStatus] = useState({});
   const [timeLeft, setTimeLeft] = useState(0);
+  const [questionTimes, setQuestionTimes] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showPalette, setShowPalette] = useState(false);
@@ -125,6 +126,24 @@ export default function TestInterface() {
     return () => clearInterval(timer);
   }, [loading, submitted]);
 
+  // Per-Question Timer
+  useEffect(() => {
+    if (loading || submitted || timeLeft <= 0 || questions.length === 0) return;
+
+    const qTimer = setInterval(() => {
+      setQuestionTimes((prev) => {
+        const qId = questions[currentQuestionIndex]?._id;
+        if (qId === undefined) return prev;
+        return {
+          ...prev,
+          [qId]: (prev[qId] || 0) + 1,
+        };
+      });
+    }, 1000);
+
+    return () => clearInterval(qTimer);
+  }, [loading, submitted, timeLeft, currentQuestionIndex, questions]);
+
   const saveAndNavigate = useCallback((isAutoSubmit = false) => {
     let correct = 0;
     let wrong = 0;
@@ -180,6 +199,7 @@ export default function TestInterface() {
       },
       subjectWise: Object.values(subjectMap),
       timeTaken,
+      questionTimes,
       timestamp: new Date().toISOString(),
       autoSubmitted: isAutoSubmit,
     };
@@ -218,6 +238,7 @@ export default function TestInterface() {
         unanswered: unanswered,
         percentage: percentageScore,
         timeTaken: timeTaken,
+        questionTimes: questionTimes,
         subjectWise: Object.values(subjectMap),
         timestamp: serverTimestamp(),
         autoSubmitted: isAutoSubmit
@@ -239,6 +260,12 @@ export default function TestInterface() {
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const formatQuestionTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const handleOptionSelect = (optionKey) => {
@@ -420,6 +447,12 @@ export default function TestInterface() {
                   </span>
                 </h2>
                 <div className="flex items-center gap-3">
+                  <div className="flex items-center bg-slate-100 px-3 py-1 rounded-lg border border-slate-200" title="Time spent on this question">
+                    <Clock className="w-4 h-4 text-slate-500 mr-2" />
+                    <span className="text-sm font-semibold text-slate-600 font-mono">
+                      {formatQuestionTime(questionTimes[currentQuestion._id] || 0)}
+                    </span>
+                  </div>
                   <span className="text-emerald-500 font-bold text-sm bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
                     +{currentQuestion.marks} Mark{currentQuestion.marks > 1 ? 's' : ''}
                   </span>

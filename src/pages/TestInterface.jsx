@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Clock, Bookmark, Eraser, ArrowRight, Menu, X, ChevronLeft, AlertTriangle } from 'lucide-react';
 import QuestionCard from '../components/QuestionCard';
 import QuestionPalette from '../components/QuestionPalette';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useUser } from '../context/UserContext';
 
@@ -13,6 +13,7 @@ export default function TestInterface() {
   const { user } = useUser();
 
   const [testData, setTestData] = useState(null);
+  const [testConfig, setTestConfig] = useState(null);
   const [assameseData, setAssameseData] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [assameseQuestions, setAssameseQuestions] = useState([]);
@@ -63,6 +64,18 @@ export default function TestInterface() {
         if (!response.ok) throw new Error('Test not found');
         const data = await response.json();
         setTestData(data.mock_test);
+
+        // Fetch Test Configs for permissions and negative marking
+        try {
+          if (db) {
+            const configDoc = await getDoc(doc(db, 'testConfigs', id));
+            if (configDoc.exists()) {
+              setTestConfig(configDoc.data());
+            }
+          }
+        } catch(e) {
+          console.warn("Failed to load testConfig", e);
+        }
 
         // Attempt to fetch Assamese file silently
         try {
@@ -157,6 +170,9 @@ export default function TestInterface() {
           totalMarks += q.marks;
         } else {
           wrong++;
+          if (testConfig && testConfig.negativeMarks) {
+            totalMarks -= Number(testConfig.negativeMarks);
+          }
         }
       } else {
         unanswered++;
@@ -250,7 +266,7 @@ export default function TestInterface() {
     }
 
     navigate(`/results/${encodeURIComponent(id)}`);
-  }, [questions, answers, testData, timeLeft, id, navigate, user]);
+  }, [questions, answers, testData, testConfig, timeLeft, id, navigate, user]);
 
   const handleAutoSubmit = () => {
     setSubmitted(true);
@@ -458,6 +474,11 @@ export default function TestInterface() {
                   <span className="text-emerald-500 font-bold text-sm bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
                     +{currentQuestion.marks} Mark{currentQuestion.marks > 1 ? 's' : ''}
                   </span>
+                  {testConfig && testConfig.negativeMarks > 0 && (
+                    <span className="text-red-500 font-bold text-sm bg-red-50 px-3 py-1 rounded-lg border border-red-200" title="Negative marking for wrong answer">
+                      -{testConfig.negativeMarks}
+                    </span>
+                  )}
                 </div>
               </div>
 

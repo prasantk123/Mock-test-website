@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { GraduationCap, BookOpen, Clock, Users, ChevronRight, Sparkles, History, Trophy, RotateCcw, Eye, AlertTriangle, Loader2 } from 'lucide-react';
 import Header from '../components/Header';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function Dashboard() {
   const [mockTests, setMockTests] = useState([]);
@@ -17,10 +19,28 @@ export default function Dashboard() {
         if (!manifestRes.ok) throw new Error('Could not load test list');
         const manifest = await manifestRes.json();
 
+        // Fetch test configs from Firestore to handle publishing visibility
+        let testConfigs = {};
+        try {
+          if (db) {
+            const configSnapshot = await getDocs(collection(db, 'testConfigs'));
+            configSnapshot.forEach(doc => {
+              testConfigs[doc.id] = doc.data();
+            });
+          }
+        } catch (e) {
+          console.warn("Failed to fetch testConfigs:", e);
+        }
+
         // Fetch metadata from each test file
         const tests = [];
         for (let i = 0; i < manifest.tests.length; i++) {
           const fileName = manifest.tests[i];
+          
+          // Pre-filter: Check config.isPublished (defaults to true if config doesn't exist)
+          const config = testConfigs[fileName];
+          if (config && config.isPublished === false) continue;
+
           try {
             const testRes = await fetch(`${import.meta.env.BASE_URL}data/${fileName}?t=${Date.now()}`);
             if (!testRes.ok) continue;

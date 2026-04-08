@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Lock, Download, Users, CheckCircle, Search, FileSpreadsheet, Eye, X } from 'lucide-react';
+import { Lock, Download, Users, CheckCircle, Search, FileSpreadsheet, Eye, X, Settings } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -10,8 +10,11 @@ export default function AdminDashboard() {
   const [usersList, setUsersList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('results'); // 'results' | 'users'
+  const [activeTab, setActiveTab] = useState('results'); // 'results' | 'users' | 'tests'
   const [selectedAttempt, setSelectedAttempt] = useState(null);
+  
+  const [testsList, setTestsList] = useState([]);
+  const [testConfigs, setTestConfigs] = useState({});
 
   // The passcode to access the admin portal. You can change this below.
   const ADMIN_PASSCODE = 'admin123';
@@ -51,11 +54,72 @@ export default function AdminDashboard() {
       } catch (userErr) {
         console.error("Error fetching users:", userErr);
       }
+      // 3. Fetch Tests List & Configs
+      try {
+        const manifestRes = await fetch(`${import.meta.env.BASE_URL}data/tests.json?t=${Date.now()}`);
+        if (manifestRes.ok) {
+          const manifest = await manifestRes.json();
+          
+          const configSnapshot = await getDocs(collection(db, 'testConfigs'));
+          const configs = {};
+          configSnapshot.forEach(d => { configs[d.id] = d.data(); });
+          setTestConfigs(configs);
+
+          const loadedTests = [];
+          for (let i = 0; i < manifest.tests.length; i++) {
+            const fileName = manifest.tests[i];
+            try {
+              const testRes = await fetch(`${import.meta.env.BASE_URL}data/${fileName}?t=${Date.now()}`);
+              if (testRes.ok) {
+                const testData = await testRes.json();
+                loadedTests.push({
+                  id: fileName,
+                  title: testData.mock_test.title || fileName,
+                  questions: testData.questions?.length || 0
+                });
+              }
+            } catch(e) {}
+          }
+          setTestsList(loadedTests);
+        }
+      } catch(testErr) {
+        console.error("Error fetching tests list:", testErr);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
       alert("Failed to load data. Ensure Firebase permissions allow reading.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTogglePublish = async (fileName, currentStatus) => {
+    try {
+      const newStatus = !currentStatus;
+      const configRef = doc(db, 'testConfigs', fileName);
+      await setDoc(configRef, { isPublished: newStatus }, { merge: true });
+      setTestConfigs(prev => ({
+        ...prev,
+        [fileName]: { ...(prev[fileName] || {}), isPublished: newStatus }
+      }));
+    } catch(err) {
+      alert("Failed to update status.");
+    }
+  };
+
+  const handleUpdateNegativeMarks = async (fileName, value) => {
+    try {
+      const marks = Number(value);
+      if (isNaN(marks)) return alert("Please enter a valid number");
+      const configRef = doc(db, 'testConfigs', fileName);
+      await setDoc(configRef, { negativeMarks: marks }, { merge: true });
+      setTestConfigs(prev => ({
+        ...prev,
+        [fileName]: { ...(prev[fileName] || {}), negativeMarks: marks }
+      }));
+      alert(`Negative marking for ${fileName} saved successfully!`);
+    } catch(err) {
+      alert("Failed to update marks.");
     }
   };
 
@@ -326,7 +390,14 @@ export default function AdminDashboard() {
                   className={`px-4 flex items-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   <Users className="w-4 h-4" />
-                  Registered Users ({usersList.length})
+                  Users ({usersList.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('tests')}
+                  className={`px-4 flex items-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'tests' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <Settings className="w-4 h-4" />
+                  Manage Tests
                 </button>
               </div>
               <div className="relative w-full sm:w-72">
@@ -487,7 +558,72 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 ))
-              ))}
+                )
+              )}
+
+              {/* === MANAGE TESTS TAB === */}
+              {activeTab === 'tests' && (
+                <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        <th className="p-4 pl-6">Test File</th>
+                        <th className="p-4">Title</th>
+                        <th className="p-4 text-center">Questions</th>
+                        <th className="p-4 text-center">Status</th>
+                        <th className="p-4 text-center">Negative Marks (Per Wrong Answer)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {testsList.map(test => {
+                         const config = testConfigs[test.id] || {};
+                         // Defaults to true if strictly not set to false
+                         const isPublished = config.isPublished !== false;
+                         const negMarks = config.negativeMarks || '';
+
+                         return (
+                          <tr key={test.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-4 pl-6 font-mono text-slate-500 text-xs">{test.id}</td>
+                            <td className="p-4 font-bold text-slate-800">{test.title}</td>
+                            <td className="p-4 text-center text-slate-600">{test.questions}</td>
+                            
+                            {/* Toggle Publish */}
+                            <td className="p-4 text-center">
+                              <button
+                                onClick={() => handleTogglePublish(test.id, isPublished)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isPublished ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-600 border border-slate-300'}`}
+                              >
+                                {isPublished ? 'Published' : 'Hidden'}
+                              </button>
+                            </td>
+
+                            {/* Negative Marks */}
+                            <td className="p-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="0.0"
+                                  id={`neg-mark-${test.id}`}
+                                  defaultValue={negMarks}
+                                  className="w-20 text-center px-2 py-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm font-mono"
+                                />
+                                <button
+                                  onClick={() => handleUpdateNegativeMarks(test.id, document.getElementById(`neg-mark-${test.id}`).value)}
+                                  className="bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-xs font-bold border border-blue-100 transition-colors"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                         );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}

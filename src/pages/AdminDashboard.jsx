@@ -7,8 +7,10 @@ export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [results, setResults] = useState([]);
+  const [usersList, setUsersList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('results'); // 'results' | 'users'
 
   // The passcode to access the admin portal. You can change this below.
   const ADMIN_PASSCODE = 'admin123';
@@ -17,16 +19,17 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (passcode === ADMIN_PASSCODE) {
       setIsAuthenticated(true);
-      fetchResults();
+      fetchData();
     } else {
       alert('Incorrect passcode!');
       setPasscode('');
     }
   };
 
-  const fetchResults = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
+      // 1. Fetch Results
       const q = query(collection(db, 'results'), orderBy('timestamp', 'desc'));
       const querySnapshot = await getDocs(q);
       const data = querySnapshot.docs.map(doc => ({
@@ -38,9 +41,18 @@ export default function AdminDashboard() {
         }) : 'Unknown Date'
       }));
       setResults(data);
+
+      // 2. Fetch Users
+      try {
+        const uQuery = query(collection(db, 'users'));
+        const uSnapshot = await getDocs(uQuery);
+        setUsersList(uSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (userErr) {
+        console.error("Error fetching users:", userErr);
+      }
     } catch (error) {
-      console.error("Error fetching results:", error);
-      alert("Failed to load results. Ensure Firebase permissions allow reading.");
+      console.error("Error fetching data:", error);
+      alert("Failed to load data. Ensure Firebase permissions allow reading.");
     } finally {
       setLoading(false);
     }
@@ -103,6 +115,12 @@ export default function AdminDashboard() {
     (r.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
     (r.phoneNumber || '').includes(searchTerm) ||
     (r.testTitle || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredUsers = usersList.filter(u => 
+    (u.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (u.lastName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (u.phoneNumber || '').includes(searchTerm)
   );
 
   // Grouping by User then by Mock Test
@@ -203,9 +221,21 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             {/* Toolbar */}
             <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-slate-600 font-semibold">
-                <CheckCircle className="w-5 h-5 text-blue-900" />
-                {filteredResults.length} Submissions Found
+              <div className="flex bg-slate-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setActiveTab('results')}
+                  className={`px-4 flex items-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'results' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Submissions ({results.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className={`px-4 flex items-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <Users className="w-4 h-4" />
+                  Registered Users ({usersList.length})
+                </button>
               </div>
               <div className="relative w-full sm:w-72">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -213,7 +243,7 @@ export default function AdminDashboard() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search name, phone, or test..."
+                  placeholder="Search name, phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none text-sm"
@@ -221,16 +251,60 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Grouped Data Rendering */}
+            {/* Content Rendering */}
             <div className="p-4 sm:p-6 space-y-6 bg-slate-50">
-              {Object.keys(groupedResults).length === 0 ? (
-                <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-500 shadow-sm">
-                  {searchTerm ? 'No results matched your search.' : 'No test results found in the database yet.'}
-                </div>
-              ) : (
-                Object.values(groupedResults).map((user) => (
-                  <div key={user.phoneNumber || Math.random()} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    {/* User Header */}
+              
+              {/* === USERS TAB === */}
+              {activeTab === 'users' && (
+                filteredUsers.length === 0 ? (
+                   <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-500 shadow-sm">
+                     {searchTerm ? 'No registered users matched your search.' : 'No registered users found.'}
+                   </div>
+                ) : (
+                   <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
+                     <table className="w-full text-left border-collapse min-w-[600px]">
+                       <thead>
+                         <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                           <th className="p-4 pl-6">Student Name</th>
+                           <th className="p-4">Phone Number</th>
+                           <th className="p-4 text-center">Total Tests Submissions</th>
+                           <th className="p-4 text-right pr-6">Last Login</th>
+                         </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-100 text-sm">
+                         {filteredUsers.map(u => {
+                            const testsTaken = results.filter(r => r.phoneNumber === u.phoneNumber).length;
+                            return (
+                             <tr key={u.phoneNumber || u.id} className="hover:bg-slate-50 transition-colors">
+                               <td className="p-4 pl-6 font-bold text-slate-800 capitalize">{u.firstName} {u.lastName}</td>
+                               <td className="p-4 text-slate-600 font-mono">{u.phoneNumber}</td>
+                               <td className="p-4 text-center">
+                                 <span className="bg-blue-50 text-blue-800 font-bold px-3 py-1 rounded-full text-xs">
+                                    {testsTaken}
+                                 </span>
+                               </td>
+                               <td className="p-4 text-slate-500 text-right pr-6 whitespace-nowrap">
+                                 {u.lastLogin ? (u.lastLogin.toDate ? u.lastLogin.toDate().toLocaleDateString('en-IN') : 'Recent') : 'N/A'}
+                               </td>
+                             </tr>
+                            );
+                         })}
+                       </tbody>
+                     </table>
+                   </div>
+                )
+              )}
+
+              {/* === RESULTS TAB === */}
+              {activeTab === 'results' && (
+                Object.keys(groupedResults).length === 0 ? (
+                  <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-500 shadow-sm">
+                    {searchTerm ? 'No results matched your search.' : 'No test results found in the database yet.'}
+                  </div>
+                ) : (
+                  Object.values(groupedResults).map((user) => (
+                    <div key={user.phoneNumber || Math.random()} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                      {/* User Header */}
                     <div className="bg-blue-50/50 px-6 py-4 border-b border-slate-200 flex items-center gap-4">
                       <div className="w-12 h-12 bg-blue-100 text-blue-900 rounded-full flex items-center justify-center font-bold text-xl uppercase shadow-inner">
                         {(user.firstName || 'U')[0]}
@@ -310,7 +384,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 ))
-              )}
+              ))}
             </div>
           </div>
         )}

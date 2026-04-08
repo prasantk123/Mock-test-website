@@ -1,19 +1,54 @@
 import LatexText from './LatexText';
+import { useState } from 'react';
 
-export default function QuestionCard({ question, selectedOption, onOptionSelect }) {
+export default function QuestionCard({ 
+  question, 
+  assameseQuestion, 
+  globalMedium = 'en', 
+  selectedOption, 
+  onOptionSelect 
+}) {
+  const [localMedium, setLocalMedium] = useState(globalMedium);
+
+  // Check if translation is allowed and exists
+  const canTranslate = assameseQuestion && question.subject?.toLowerCase() !== 'english';
+  
+  // Choose which language data to display
+  const activeData = (canTranslate && localMedium === 'as') ? assameseQuestion : question;
+
   const options = [
-    { key: 'A', text: question.option_a },
-    { key: 'B', text: question.option_b },
-    { key: 'C', text: question.option_c },
-    { key: 'D', text: question.option_d },
+    { key: 'A', text: activeData.option_a },
+    { key: 'B', text: activeData.option_b },
+    { key: 'C', text: activeData.option_c },
+    { key: 'D', text: activeData.option_d },
   ];
 
   return (
     <div className="animate-fade-in-up">
+      {/* Optional Per-Question Language Toggle */}
+      {canTranslate && (
+        <div className="flex justify-end mb-3">
+          <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1.5 shadow-sm">
+            <button
+              onClick={() => setLocalMedium('en')}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${localMedium === 'en' ? 'bg-blue-50 text-blue-900' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              English
+            </button>
+            <button
+              onClick={() => setLocalMedium('as')}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${localMedium === 'as' ? 'bg-blue-50 text-blue-900' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              অসমীয়া
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Question Text */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 mb-5 shadow-sm">
         <div className="text-slate-800 text-base sm:text-lg leading-relaxed font-medium">
-          <LatexText text={question.question_text} />
+          <LatexText text={activeData.question_text} />
         </div>
       </div>
 

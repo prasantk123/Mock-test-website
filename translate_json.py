@@ -25,15 +25,14 @@ from google.genai import errors as genai_errors
 # ──────────────────────────────────────────────
 # CONFIGURATION
 # ──────────────────────────────────────────────
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyDz42u8MKR58IeM93mDzZK1hxH990IUkaY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyBjkq5MJ_UdyqwvETHjBns0FB6_4en--MQ")
 
 # Models to try in order (falls back to next if quota exhausted)
 # Each model has its own separate quota on the free tier
 MODELS = [
-    "gemini-2.5-flash-lite",
-    "gemini-2.0-flash-lite",
     "gemini-2.5-flash",
     "gemini-2.0-flash",
+    "gemini-2.5-flash-lite",
 ]
 
 # Fields to translate in each question object
@@ -136,8 +135,16 @@ def call_gemini_with_retry(client, prompt):
             )
             return response
 
-        except genai_errors.ClientError as e:
+        except genai_errors.APIError as e:
             error_str = str(e)
+
+            # High Demand / Server Error
+            if "503" in error_str or "UNAVAILABLE" in error_str or "500" in error_str:
+                print(f"  ⚠ Google Server overloaded (503). Waiting 10s...")
+                time.sleep(10)
+                if switch_to_next_model():
+                    continue
+                continue
 
             # Model not found or not available — try next model
             if "404" in error_str or "NOT_FOUND" in error_str:
@@ -184,17 +191,20 @@ def translate_batch(client, texts: list[str]) -> list[str]:
     # Build a numbered list for the prompt
     numbered = "\n".join(f"[{i}] {t}" for i, t in enumerate(texts))
 
-    prompt = f"""You are a professional English-to-Assamese translator for educational content.
+    prompt = f"""You are a Native Assamese Translator and Academic Subject Matter Expert.
 
-TASK: Translate each numbered English text below into Assamese (অসমীয়া).
+TASK: Translate each numbered English text below strictly into pure Assamese (অসমীয়া).
 
-RULES:
-1. Return ONLY a valid JSON array of strings, in the same order as the input.
-2. Preserve ALL LaTeX/math expressions exactly as-is (anything between $ signs or with backslashes like \\frac, \\text, etc.).
-3. Preserve proper nouns, abbreviations (DNA, NCERT, USA, etc.), and technical terms that are commonly used in English even in Assamese contexts.
-4. Keep numbers, dates, and units unchanged.
-5. If a text is empty (""), return an empty string.
-6. Do NOT add any explanation, markdown formatting, or extra text — just the JSON array.
+CRITICAL RULES:
+1. STRICTLY use pure Assamese words. DO NOT use any Hindi (হিন্দী) or Bengali words under any circumstance!
+2. Maintain an educational, formal Assamese tone suitable for a college-level Mock Test.
+3. Return ONLY a valid JSON array of strings, in the exact same order as the input.
+4. Preserve ALL LaTeX/math expressions exactly as-is (anything between $ signs or with backslashes like \\frac, \\text, etc.). Do not translate mathematical variable names.
+5. In Reasoning / Logic questions, DO NOT translate English letters used as variables, names, or codes (e.g., keep P, Q, A, B, APPLE, BQQMF exactly as they are in English).
+6. Preserve proper nouns, abbreviations (DNA, NCERT, USA, etc.), and technical terms that are commonly used in English even in Assamese contexts.
+7. Keep numbers, dates, and units unchanged.
+8. If a text is empty (""), return an empty string.
+9. Do NOT add any explanation, markdown formatting, or extra text — just the JSON array.
 
 INPUT TEXTS:
 {numbered}
@@ -286,8 +296,12 @@ def translate_questions(client, questions: list[dict], input_path: str, data: di
         field_map = []
 
         for q_idx, question in enumerate(batch):
+            # Skip translation for the English subject entirely
+            if question.get("subject", "").lower() == "english":
+                continue
+                
             for field in TRANSLATABLE_FIELDS:
-                if field in question:
+                if field in question and question[field]:
                     texts_to_translate.append(str(question[field]))
                     field_map.append((q_idx, field))
 
@@ -308,7 +322,7 @@ def translate_questions(client, questions: list[dict], input_path: str, data: di
 
         # Rate limiting between batches
         if batch_end < total:
-            time.sleep(4)
+            time.sleep(10)
 
     return translated_questions
 

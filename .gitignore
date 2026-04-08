@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment Variables & Sensitive Script
+.env
+translate_json.py

@@ -13,7 +13,10 @@ export default function TestInterface() {
   const { user } = useUser();
 
   const [testData, setTestData] = useState(null);
+  const [assameseData, setAssameseData] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [assameseQuestions, setAssameseQuestions] = useState([]);
+  const [globalMedium, setGlobalMedium] = useState('en');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [questionStatus, setQuestionStatus] = useState({});
@@ -59,6 +62,24 @@ export default function TestInterface() {
         if (!response.ok) throw new Error('Test not found');
         const data = await response.json();
         setTestData(data.mock_test);
+
+        // Attempt to fetch Assamese file silently
+        try {
+          const asId = id.replace('.json', '_as.json');
+          if (asId !== id) {
+            const responseAs = await fetch(`${import.meta.env.BASE_URL}data/${asId}?t=${Date.now()}`);
+            if (responseAs.ok) {
+              const dataAs = await responseAs.json();
+              setAssameseData(dataAs.mock_test);
+              setAssameseQuestions(dataAs.questions.map((q, i) => ({
+                ...q, _id: i, marks: q.marks || 1
+              })));
+            }
+          }
+        } catch (e) {
+          // It's totally fine if translation doesn't exist
+          console.log("No translated version found");
+        }
 
         // Assign sequential IDs if not present
         const questionsWithIds = data.questions.map((q, i) => ({
@@ -351,6 +372,22 @@ export default function TestInterface() {
             </div>
 
             <div className="flex items-center gap-3">
+              {assameseData && (
+                <div className="hidden sm:flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+                  <button 
+                    onClick={() => setGlobalMedium('en')}
+                    className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${globalMedium === 'en' ? 'bg-white shadow-sm text-blue-900 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    English
+                  </button>
+                  <button 
+                    onClick={() => setGlobalMedium('as')}
+                    className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${globalMedium === 'as' ? 'bg-white shadow-sm text-blue-900 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    অসমীয়া
+                  </button>
+                </div>
+              )}
               <div className={`bg-blue-50 px-4 py-2 rounded-xl flex items-center gap-2 border border-blue-100 ${isCritical ? 'timer-critical bg-red-50 border-red-200' : ''}`}>
                 <Clock className={`w-4 h-4 ${isCritical ? 'text-red-500' : 'text-blue-900'}`} />
                 <span className={`font-mono font-bold text-sm sm:text-base ${isCritical ? 'text-red-500' : 'text-blue-900'}`}>
@@ -360,6 +397,7 @@ export default function TestInterface() {
               <button
                 onClick={() => setShowPalette(true)}
                 className="lg:hidden w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center hover:bg-slate-200 transition-colors"
+                title="Open Navigation Palette"
               >
                 <Menu className="w-5 h-5 text-slate-600" />
               </button>
@@ -390,8 +428,10 @@ export default function TestInterface() {
 
               {/* Question Card */}
               <QuestionCard
-                key={currentQuestionIndex}
+                key={`${currentQuestionIndex}-${globalMedium}`}
                 question={currentQuestion}
+                assameseQuestion={assameseQuestions.length > currentQuestionIndex ? assameseQuestions[currentQuestionIndex] : null}
+                globalMedium={globalMedium}
                 selectedOption={answers[currentQuestion._id]}
                 onOptionSelect={handleOptionSelect}
               />

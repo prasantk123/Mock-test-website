@@ -65,6 +65,50 @@ export default function AdminDashboard() {
     return `${m}m ${s}s`;
   };
 
+  const downloadCertificateForAttempt = (attempt) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.src = '/certificate of Completion.png';
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0, img.width, img.height);
+      
+      // Configure Name Font - Yellow
+      ctx.font = 'bold 80px "Playfair Display", "Times New Roman", serif';
+      ctx.fillStyle = '#facc15'; // Bright Yellow
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      const fullName = `${attempt.firstName || ''} ${attempt.lastName || ''}`.trim();
+      const displayName = fullName ? fullName : 'Student';
+      
+      // Name placement slightly below center (typical for templates)
+      ctx.fillText(displayName.toUpperCase(), canvas.width / 2, canvas.height * 0.48);
+
+      // Additional Details
+      ctx.font = 'italic 32px "Playfair Display", "Times New Roman", serif';
+      ctx.fillStyle = '#f8fafc'; // Off-white for subtitle
+      const testTitle = attempt.testTitle || 'Mock Test';
+      ctx.fillText(`for successfully completing the ${testTitle}`, canvas.width / 2, canvas.height * 0.58);
+      
+      ctx.font = 'bold 24px "Playfair Display", "Times New Roman", serif';
+      ctx.fillStyle = '#cbd5e1'; 
+      ctx.fillText(`Score: ${attempt.percentage}%`, canvas.width / 2, canvas.height * 0.63);
+
+      ctx.font = 'bold 24px "Playfair Display", "Times New Roman", serif';
+      ctx.fillText(attempt.date, canvas.width * 0.28, canvas.height * 0.77);
+
+      // Trigger Download
+      const link = document.createElement('a');
+      link.download = `Certificate_${displayName.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    };
+  };
+
   const downloadCSV = () => {
     if (results.length === 0) return;
 
@@ -486,7 +530,14 @@ export default function AdminDashboard() {
               </div>
             </div>
             
-            <div className="bg-white border-t border-slate-100 p-4 sm:p-6 flex justify-end">
+            <div className="bg-white border-t border-slate-100 p-4 sm:p-6 flex justify-end gap-3">
+               <button 
+                 onClick={() => downloadCertificateForAttempt(selectedAttempt)}
+                 className="bg-amber-500 text-white font-semibold py-2 px-6 rounded-xl hover:bg-amber-600 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+               >
+                 <Download className="w-5 h-5" />
+                 Download Certificate
+               </button>
                <button 
                  onClick={() => setSelectedAttempt(null)}
                  className="bg-blue-900 text-white font-semibold py-2 px-6 rounded-xl hover:bg-blue-800 transition-all shadow-md hover:shadow-lg"

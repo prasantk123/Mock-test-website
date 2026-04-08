@@ -128,7 +128,7 @@ export default function TestInterface() {
 
   // Per-Question Timer
   useEffect(() => {
-    if (loading || submitted || timeLeft <= 0 || questions.length === 0) return;
+    if (loading || submitted || questions.length === 0) return;
 
     const qTimer = setInterval(() => {
       setQuestionTimes((prev) => {
@@ -142,7 +142,7 @@ export default function TestInterface() {
     }, 1000);
 
     return () => clearInterval(qTimer);
-  }, [loading, submitted, timeLeft, currentQuestionIndex, questions]);
+  }, [loading, submitted, currentQuestionIndex, questions]);
 
   const saveAndNavigate = useCallback((isAutoSubmit = false) => {
     let correct = 0;
@@ -241,7 +241,9 @@ export default function TestInterface() {
         questionTimes: questionTimes,
         subjectWise: Object.values(subjectMap),
         timestamp: serverTimestamp(),
-        autoSubmitted: isAutoSubmit
+        autoSubmitted: isAutoSubmit,
+        answers: answers,
+        questions: questions
       }).catch(err => {
         console.error("Failed to save result to Firestore:", err);
       });

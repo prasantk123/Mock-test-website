@@ -379,10 +379,11 @@ export default function AdminDashboard() {
                                     <td className="p-3 text-center">
                                       <button 
                                         onClick={() => setSelectedAttempt(attempt)}
-                                        className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold transition-colors shadow-sm border border-blue-100"
                                         title="View detailed response time analysis"
                                       >
-                                        <Eye className="w-5 h-5" />
+                                        <Eye className="w-4 h-4" />
+                                        <span className="hidden sm:inline text-xs">Details</span>
                                       </button>
                                     </td>
                                   </tr>
@@ -403,8 +404,8 @@ export default function AdminDashboard() {
 
       {/* Detailed Attempt Modal */}
       {selectedAttempt && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] shadow-2xl flex flex-col slide-in-bottom filter drop-shadow-2xl">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] shadow-2xl flex flex-col slide-in-bottom">
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
                <div>
                  <h3 className="text-xl font-bold text-slate-800">Attempt Details</h3>

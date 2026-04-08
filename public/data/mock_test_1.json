@@ -1,6 +1,6 @@
 {
   "mock_test": {
-    "title": "Mock Test 1",
+    "title": "Practice Set 1",
     "exam_name": "NCET ",
     "description": "Full-length mock test",
     "duration": 60,
@@ -580,8 +580,8 @@
       "option_b": "NBPFP",
       "option_c": "NBOHP",
       "option_d": "OCBPH",
-      "correct_answer": "B",
-      "explanation": "Each letter is shifted one position forward in the English alphabet (+1). MANGO becomes NBPFP.",
+      "correct_answer": "C",
+      "explanation": "Each letter is shifted one position forward in the English alphabet (+1). MANGO becomes NBOHP.",
       "marks": 1,
       "subject": "Reasoning",
       "topic": "Mix"

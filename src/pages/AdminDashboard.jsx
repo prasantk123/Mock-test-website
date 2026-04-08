@@ -118,11 +118,13 @@ export default function AdminDashboard() {
       };
 
       img.onerror = () => {
-        alert("Failed to load the certificate template image. Make sure '/certificate of Completion.png' exists in the public directory.");
+        alert(`Failed to load the certificate template image at: ${img.src}`);
       };
 
-      // Ensure exact case and spacing matching the file system in Vite.
-      img.src = '/certificate of Completion.png';
+      // Use Vite's BASE_URL to ensure it works on GitHub Pages subpaths
+      const basePath = import.meta.env.BASE_URL || '/';
+      const cleanBasePath = basePath.endsWith('/') ? basePath : basePath + '/';
+      img.src = `${cleanBasePath}certificate of Completion.png`;
     } catch (err) {
       console.error("Certificate generation error:", err);
       alert("An unexpected error occurred while creating the certificate.");

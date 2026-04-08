@@ -3,10 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Clock, Bookmark, Eraser, ArrowRight, Menu, X, ChevronLeft, AlertTriangle } from 'lucide-react';
 import QuestionCard from '../components/QuestionCard';
 import QuestionPalette from '../components/QuestionPalette';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useUser } from '../context/UserContext';
 
 export default function TestInterface() {
   const { id } = useParams(); // id is now the filename, e.g. "mock_test_1.json"
   const navigate = useNavigate();
+  const { user } = useUser();
 
   const [testData, setTestData] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -177,8 +181,32 @@ export default function TestInterface() {
     });
     localStorage.setItem(historyKey, JSON.stringify(history));
 
+    // Save to Firestore asynchronously
+    const percentageScore = maxMarks > 0 ? Math.round((totalMarks / maxMarks) * 100) : 0;
+    
+    if (user && db) {
+      addDoc(collection(db, 'results'), {
+        phoneNumber: user.phoneNumber,
+        firstName: user.firstName,
+        testId: id,
+        testTitle: testData?.title || id,
+        score: totalMarks,
+        maxMarks: maxMarks,
+        correct: correct,
+        wrong: wrong,
+        unanswered: unanswered,
+        percentage: percentageScore,
+        timeTaken: timeTaken,
+        subjectWise: Object.values(subjectMap),
+        timestamp: serverTimestamp(),
+        autoSubmitted: isAutoSubmit
+      }).catch(err => {
+        console.error("Failed to save result to Firestore:", err);
+      });
+    }
+
     navigate(`/results/${encodeURIComponent(id)}`);
-  }, [questions, answers, testData, timeLeft, id, navigate]);
+  }, [questions, answers, testData, timeLeft, id, navigate, user]);
 
   const handleAutoSubmit = () => {
     setSubmitted(true);

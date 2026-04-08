@@ -7,6 +7,7 @@ import { useUser } from '../context/UserContext';
 
 export default function LoginPage() {
   const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -19,6 +20,10 @@ export default function LoginPage() {
 
     if (!firstName.trim()) {
       setError('Please enter your first name.');
+      return;
+    }
+    if (!lastName.trim()) {
+      setError('Please enter your last name.');
       return;
     }
     
@@ -35,6 +40,7 @@ export default function LoginPage() {
     try {
       const userData = {
         firstName: firstName.trim(),
+        lastName: lastName.trim(),
         phoneNumber: phoneNumber.trim(),
       };
 
@@ -111,6 +117,27 @@ export default function LoginPage() {
                   placeholder="e.g. Rahul"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium text-slate-700">
+                Last Name
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-slate-400" />
+                </div>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  required
+                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-xl py-3 border bg-slate-50 hover:bg-white transition-colors"
+                  placeholder="e.g. Sharma"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
                 />
               </div>
             </div>

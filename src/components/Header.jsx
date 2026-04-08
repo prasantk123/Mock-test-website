@@ -30,7 +30,7 @@ export default function Header() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
                 <span className="text-sm text-slate-500 hidden sm:block">
-                  Welcome, <span className="font-semibold text-slate-800">{user.firstName}</span>
+                  Welcome, <span className="font-semibold text-slate-800">{user.firstName} {user.lastName}</span>
                 </span>
                 <div className="w-9 h-9 bg-gradient-to-br from-blue-900 to-blue-700 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-md">
                   {user.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}

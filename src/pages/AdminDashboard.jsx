@@ -105,6 +105,41 @@ export default function AdminDashboard() {
     (r.testTitle || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Grouping by User then by Mock Test
+  const groupedResults = filteredResults.reduce((acc, curr) => {
+    // We group by phone number since it's unique per user
+    const key = curr.phoneNumber || 'unknown-' + curr.firstName;
+    if (!acc[key]) {
+      acc[key] = {
+        firstName: curr.firstName,
+        phoneNumber: curr.phoneNumber,
+        tests: {}
+      };
+    }
+    
+    // Group by test
+    const testKey = curr.testId || 'unknown-test';
+    if (!acc[key].tests[testKey]) {
+      acc[key].tests[testKey] = {
+        testTitle: curr.testTitle || curr.testId,
+        testId: curr.testId,
+        attempts: []
+      };
+    }
+    
+    acc[key].tests[testKey].attempts.push(curr);
+    return acc;
+  }, {});
+
+  // Sort attempts per test chronologically (oldest = Attempt 1)
+  Object.values(groupedResults).forEach(user => {
+    Object.values(user.tests).forEach(test => {
+      // The original data from Firebase is sorted desc (newest first). 
+      // Reverse to get ascending order for Attempt 1, Attempt 2, etc.
+      test.attempts.reverse();
+    });
+  });
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -186,64 +221,96 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-sm font-semibold text-slate-600 uppercase tracking-wider">
-                    <th className="p-4 pl-6 whitespace-nowrap">Date</th>
-                    <th className="p-4 whitespace-nowrap">Student</th>
-                    <th className="p-4 whitespace-nowrap">Test</th>
-                    <th className="p-4 text-center whitespace-nowrap">Score</th>
-                    <th className="p-4 text-center whitespace-nowrap">Right / Wrong</th>
-                    <th className="p-4 text-right pr-6 whitespace-nowrap">Time Taken</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 uppercase text-sm">
-                  {filteredResults.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="p-8 text-center text-slate-500">
-                        {searchTerm ? 'No results matched your search.' : 'No test results found in the database yet.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredResults.map((result) => (
-                      <tr key={result.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-4 pl-6 font-medium text-slate-600 normal-case whitespace-nowrap">
-                          {result.date}
-                        </td>
-                        <td className="p-4">
-                          <div className="font-bold text-slate-800 normal-case">{result.firstName}</div>
-                          <div className="text-xs text-slate-400 normal-case">{result.phoneNumber}</div>
-                        </td>
-                        <td className="p-4 font-medium text-slate-700 normal-case max-w-[200px] truncate" title={result.testTitle || result.testId}>
-                          {result.testTitle || result.testId}
-                        </td>
-                        <td className="p-4">
-                          <div className="flex flex-col items-center">
-                            <span className={`font-black text-lg ${result.percentage >= 60 ? 'text-emerald-600' : 'text-amber-500'}`}>
-                              {result.percentage}%
-                            </span>
-                            <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
-                              {result.score} / {result.maxMarks}
-                            </span>
+            {/* Grouped Data Rendering */}
+            <div className="p-4 sm:p-6 space-y-6 bg-slate-50">
+              {Object.keys(groupedResults).length === 0 ? (
+                <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-500 shadow-sm">
+                  {searchTerm ? 'No results matched your search.' : 'No test results found in the database yet.'}
+                </div>
+              ) : (
+                Object.values(groupedResults).map((user) => (
+                  <div key={user.phoneNumber || Math.random()} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    {/* User Header */}
+                    <div className="bg-blue-50/50 px-6 py-4 border-b border-slate-200 flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-100 text-blue-900 rounded-full flex items-center justify-center font-bold text-xl uppercase shadow-inner">
+                        {(user.firstName || 'U')[0]}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900 capitalize">{user.firstName || 'Unknown User'}</h3>
+                        <p className="text-sm text-slate-500 font-medium">{user.phoneNumber || 'N/A'}</p>
+                      </div>
+                    </div>
+                    
+                    {/* User Tests */}
+                    <div className="p-4 sm:p-6 space-y-8">
+                      {Object.values(user.tests).map((test) => (
+                        <div key={test.testId} className="space-y-3">
+                          <h4 className="font-semibold text-blue-900 border-b border-slate-100 pb-2 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                            {test.testTitle}
+                          </h4>
+                          
+                          <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
+                            <table className="w-full text-left border-collapse min-w-[600px]">
+                              <thead>
+                                <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                  <th className="p-3 pl-4">Attempt #</th>
+                                  <th className="p-3">Date Submitted</th>
+                                  <th className="p-3 text-center">Score</th>
+                                  <th className="p-3 text-center">Right</th>
+                                  <th className="p-3 text-center">Wrong</th>
+                                  <th className="p-3 text-center">Skipped</th>
+                                  <th className="p-3 text-right pr-4">Time Taken</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 text-sm">
+                                {test.attempts.map((attempt, index) => (
+                                  <tr key={attempt.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="p-3 pl-4 font-semibold text-slate-700 whitespace-nowrap">
+                                      Attempt {index + 1}
+                                    </td>
+                                    <td className="p-3 text-slate-500 whitespace-nowrap">
+                                      {attempt.date}
+                                    </td>
+                                    <td className="p-3">
+                                      <div className="flex flex-col items-center">
+                                        <span className={`font-bold ${attempt.percentage >= 60 ? 'text-emerald-600' : 'text-amber-500'}`}>
+                                          {attempt.percentage}%
+                                        </span>
+                                        <span className="text-xs text-slate-400 font-medium">
+                                          {attempt.score} / {attempt.maxMarks}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                      <span className="inline-block min-w-[2.5rem] bg-emerald-100 text-emerald-800 px-2 py-1 rounded-md font-mono text-xs font-bold ring-1 ring-emerald-200">
+                                        {attempt.correct || 0}
+                                      </span>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                      <span className="inline-block min-w-[2.5rem] bg-red-100 text-red-800 px-2 py-1 rounded-md font-mono text-xs font-bold ring-1 ring-red-200">
+                                        {attempt.wrong || 0}
+                                      </span>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                      <span className="inline-block min-w-[2.5rem] bg-slate-200 text-slate-700 px-2 py-1 rounded-md font-mono text-xs font-bold ring-1 ring-slate-300">
+                                        {attempt.unanswered || 0}
+                                      </span>
+                                    </td>
+                                    <td className="p-3 pr-4 text-right font-mono text-slate-600 whitespace-nowrap">
+                                      {formatTime(attempt.timeTaken || 0)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-center gap-2 font-mono text-xs">
-                            <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{result.correct || 0}</span>
-                            <span className="text-slate-300">/</span>
-                            <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{result.wrong || 0}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 pr-6 text-right font-mono text-slate-600 whitespace-nowrap normal-case">
-                          {formatTime(result.timeTaken || 0)}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}

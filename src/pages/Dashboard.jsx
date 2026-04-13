@@ -1,15 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { GraduationCap, BookOpen, Clock, Users, ChevronRight, Sparkles, History, Trophy, RotateCcw, Eye, AlertTriangle, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { GraduationCap, BookOpen, Clock, Users, ChevronRight, Sparkles, History, Trophy, RotateCcw, Eye, AlertTriangle, Loader2, Download, User, X, CheckCircle2 } from 'lucide-react';
 import Header from '../components/Header';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useUser } from '../context/UserContext';
+import { downloadUserCertificate } from '../utils/certificate';
 
 export default function Dashboard() {
   const [mockTests, setMockTests] = useState([]);
   const [testHistories, setTestHistories] = useState({});
+  const [testConfigsState, setTestConfigsState] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  const navigate = useNavigate();
+  const { user, login } = useUser();
+
+  // Modal State
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [targetTestFile, setTargetTestFile] = useState(null);
+  const [modalFirstName, setModalFirstName] = useState('');
+  const [modalLastName, setModalLastName] = useState('');
+  const [updatingName, setUpdatingName] = useState(false);
 
   useEffect(() => {
     const fetchTests = async () => {
@@ -27,6 +40,7 @@ export default function Dashboard() {
             configSnapshot.forEach(doc => {
               testConfigs[doc.id] = doc.data();
             });
+            setTestConfigsState(testConfigs);
           }
         } catch (e) {
           console.warn("Failed to fetch testConfigs:", e);
@@ -93,6 +107,46 @@ export default function Dashboard() {
   const formatDate = (isoString) => {
     const d = new Date(isoString);
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleStartAttempt = (fileName) => {
+    setTargetTestFile(fileName);
+    setModalFirstName(user?.firstName || '');
+    setModalLastName(user?.lastName || '');
+    setShowNameModal(true);
+  };
+
+  const confirmAndStartTest = async () => {
+    if (!modalFirstName.trim()) return alert("First Name is required.");
+    
+    setUpdatingName(true);
+    try {
+      // Allow them to correct their name in Firestore and Context
+      const updatedData = {
+        ...user,
+        firstName: modalFirstName.trim(),
+        lastName: modalLastName.trim()
+      };
+      
+      if (db && user?.phoneNumber) {
+        const userRef = doc(db, 'users', user.phoneNumber);
+        await setDoc(userRef, { 
+          firstName: updatedData.firstName, 
+          lastName: updatedData.lastName 
+        }, { merge: true });
+      }
+      
+      login(updatedData); // Update Context and LocalStorage
+      
+      setShowNameModal(false);
+      navigate(`/test/${encodeURIComponent(targetTestFile)}`);
+    } catch (err) {
+      console.error("Failed to update name:", err);
+      alert("Failed to update name. Proceeding with existing name.");
+      navigate(`/test/${encodeURIComponent(targetTestFile)}`);
+    } finally {
+      setUpdatingName(false);
+    }
   };
 
   return (
@@ -184,6 +238,9 @@ export default function Dashboard() {
                 const history = testHistories[test.fileName];
                 const lastAttempt = history ? history[history.length - 1] : null;
                 const hasAttempted = !!lastAttempt;
+                const config = testConfigsState[test.fileName] || {};
+                const isOneAttemptOnly = config.oneAttemptOnly === true;
+                const maxAttemptsReached = hasAttempted && isOneAttemptOnly;
 
                 return (
                   <div
@@ -256,30 +313,48 @@ export default function Dashboard() {
                       )}
 
                       {hasAttempted ? (
-                        <div className="flex gap-2">
-                          <Link
-                            to={`/test/${encodeURIComponent(test.fileName)}`}
-                            className="flex-1 bg-blue-900 hover:bg-blue-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 btn-press shadow-lg shadow-blue-900/20 text-sm"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            Re-attempt
-                          </Link>
-                          <Link
-                            to={`/results/${encodeURIComponent(test.fileName)}`}
-                            className="py-3 px-4 rounded-xl border-2 border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all duration-200 flex items-center justify-center gap-1.5 btn-press text-sm"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            Results
-                          </Link>
+                        <div className="flex flex-col gap-2">
+                          <div className="flex gap-2">
+                            {maxAttemptsReached ? (
+                              <button disabled className="flex-1 bg-slate-100 text-slate-400 font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed border border-slate-200 text-sm">
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                Max Attempts Reached
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleStartAttempt(test.fileName)}
+                                className="flex-1 bg-blue-900 hover:bg-blue-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 btn-press shadow-lg shadow-blue-900/20 text-sm"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                Re-attempt
+                              </button>
+                            )}
+                            <Link
+                              to={`/results/${encodeURIComponent(test.fileName)}`}
+                              className="py-3 px-4 rounded-xl border-2 border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all duration-200 flex items-center justify-center gap-1.5 btn-press text-sm"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              Results
+                            </Link>
+                          </div>
+                          {lastAttempt && config.certificateEnabled && (
+                            <button
+                               onClick={() => downloadUserCertificate(lastAttempt, user)}
+                               className="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-2.5 px-4 rounded-xl border border-amber-200 transition-colors flex items-center justify-center gap-2 text-sm mt-1"
+                            >
+                              <Download className="w-4 h-4" />
+                              Download Certificate
+                            </button>
+                          )}
                         </div>
                       ) : (
-                        <Link
-                          to={`/test/${encodeURIComponent(test.fileName)}`}
+                        <button
+                          onClick={() => handleStartAttempt(test.fileName)}
                           className="w-full bg-blue-900 hover:bg-blue-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 btn-press shadow-lg shadow-blue-900/20"
                         >
                           Start Test
                           <ChevronRight className="w-4 h-4" />
-                        </Link>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -289,6 +364,70 @@ export default function Dashboard() {
           </>
         )}
       </section>
+
+      {/* Name Confirmation Modal */}
+      {showNameModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 sm:p-8 slide-in-bottom">
+            <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-7 h-7 text-amber-600" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 text-center mb-2">Confirm Your Name</h3>
+            <p className="text-slate-500 text-center text-sm mb-6">
+              This exact name will be printed on your certificate. Please correct any spelling mistakes before starting the test.
+            </p>
+
+            <div className="space-y-4 mb-8">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={modalFirstName}
+                    onChange={(e) => setModalFirstName(e.target.value)}
+                    className="pl-10 block w-full border-slate-300 rounded-xl py-3 border focus:ring-blue-500 focus:border-blue-500 bg-slate-50 transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={modalLastName}
+                    onChange={(e) => setModalLastName(e.target.value)}
+                    className="pl-10 block w-full border-slate-300 rounded-xl py-3 border focus:ring-blue-500 focus:border-blue-500 bg-slate-50 transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowNameModal(false)}
+                className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors btn-press"
+                disabled={updatingName}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAndStartTest}
+                disabled={updatingName}
+                className="flex-[2] py-3 px-4 rounded-xl bg-blue-900 text-white font-semibold flex items-center justify-center gap-2 hover:bg-blue-800 transition-colors shadow-lg shadow-blue-900/20 btn-press disabled:opacity-70"
+              >
+                {updatingName ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-5 h-5" />}
+                {updatingName ? 'Saving...' : 'Confirm & Start'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center">

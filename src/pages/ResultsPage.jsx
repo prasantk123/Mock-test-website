@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Trophy, ArrowRight, Home, BarChart3, CheckCircle2, XCircle, MinusCircle, Clock } from 'lucide-react';
+import { Trophy, ArrowRight, Home, BarChart3, CheckCircle2, XCircle, MinusCircle, Clock, Download } from 'lucide-react';
+import { useUser } from '../context/UserContext';
+import { downloadUserCertificate } from '../utils/certificate';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function ResultsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [result, setResult] = useState(null);
+  const [certEnabled, setCertEnabled] = useState(false);
+  const { user } = useUser();
 
   useEffect(() => {
     const stored = localStorage.getItem('lastTestResult');
@@ -13,6 +19,18 @@ export default function ResultsPage() {
       const parsed = JSON.parse(stored);
       if (parsed.testId === id) {
         setResult(parsed);
+        // Fetch config to check if certificate is enabled
+        const checkCert = async () => {
+          try {
+            if (db) {
+              const cfg = await getDoc(doc(db, 'testConfigs', id));
+              if (cfg.exists() && cfg.data().certificateEnabled) {
+                setCertEnabled(true);
+              }
+            }
+          } catch(e) {}
+        };
+        checkCert();
       } else {
         navigate('/');
       }
@@ -164,16 +182,25 @@ export default function ResultsPage() {
         <div className="flex flex-col sm:flex-row gap-3 mt-8 mb-12 animate-fade-in-up stagger-3">
           <Link
             to="/"
-            className="flex-1 py-3.5 px-6 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 transition-all duration-200 flex items-center justify-center gap-2 btn-press"
+            className="flex-1 py-3.5 px-6 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 transition-all duration-200 flex items-center justify-center gap-2 btn-press text-sm sm:text-base"
           >
             <Home className="w-4 h-4" />
-            Return to Dashboard
+            Dashboard
           </Link>
+          {certEnabled && (
+            <button
+              onClick={() => downloadUserCertificate(result, user)}
+              className="flex-[1.5] py-3.5 px-6 rounded-xl bg-amber-500 text-white font-semibold hover:bg-amber-600 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 btn-press text-sm sm:text-base"
+            >
+              <Download className="w-4 h-4" />
+              Download Certificate
+            </button>
+          )}
           <Link
             to={`/review/${encodeURIComponent(id)}`}
-            className="flex-1 py-3.5 px-6 rounded-xl bg-blue-900 text-white font-semibold hover:bg-blue-800 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 btn-press"
+            className="flex-1 py-3.5 px-6 rounded-xl bg-blue-900 text-white font-semibold hover:bg-blue-800 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 btn-press text-sm sm:text-base"
           >
-            Review Answers
+            Review
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

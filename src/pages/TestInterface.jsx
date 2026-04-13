@@ -70,7 +70,17 @@ export default function TestInterface() {
           if (db) {
             const configDoc = await getDoc(doc(db, 'testConfigs', id));
             if (configDoc.exists()) {
-              setTestConfig(configDoc.data());
+              const cfg = configDoc.data();
+              setTestConfig(cfg);
+              
+              if (cfg.oneAttemptOnly) {
+                const history = JSON.parse(localStorage.getItem(`testHistory_${id}`) || '[]');
+                if (history.length > 0) {
+                  setError("This test only permits a single attempt. You have already completed it.");
+                  setLoading(false);
+                  return; // stop execution
+                }
+              }
             }
           }
         } catch(e) {
@@ -218,6 +228,7 @@ export default function TestInterface() {
       questionTimes,
       timestamp: new Date().toISOString(),
       autoSubmitted: isAutoSubmit,
+      certificateEnabled: testConfig?.certificateEnabled === true,
     };
 
     localStorage.setItem('lastTestResult', JSON.stringify(resultData));

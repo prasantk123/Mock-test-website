@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, orderBy, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Lock, Download, Users, CheckCircle, Search, FileSpreadsheet, Eye, X, Settings } from 'lucide-react';
+import { downloadUserCertificate } from '../utils/certificate';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -107,6 +108,34 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleToggleOneAttempt = async (fileName, currentStatus) => {
+    try {
+      const newStatus = !currentStatus;
+      const configRef = doc(db, 'testConfigs', fileName);
+      await setDoc(configRef, { oneAttemptOnly: newStatus }, { merge: true });
+      setTestConfigs(prev => ({
+        ...prev,
+        [fileName]: { ...(prev[fileName] || {}), oneAttemptOnly: newStatus }
+      }));
+    } catch(err) {
+      alert("Failed to update one attempt status.");
+    }
+  };
+
+  const handleToggleCertificate = async (fileName, currentStatus) => {
+    try {
+      const newStatus = !currentStatus;
+      const configRef = doc(db, 'testConfigs', fileName);
+      await setDoc(configRef, { certificateEnabled: newStatus }, { merge: true });
+      setTestConfigs(prev => ({
+        ...prev,
+        [fileName]: { ...(prev[fileName] || {}), certificateEnabled: newStatus }
+      }));
+    } catch(err) {
+      alert("Failed to update certificate status.");
+    }
+  };
+
   const handleUpdateNegativeMarks = async (fileName, value) => {
     try {
       const marks = Number(value);
@@ -130,84 +159,8 @@ export default function AdminDashboard() {
   };
 
   const downloadCertificateForAttempt = (attempt) => {
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        try {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0, img.width, img.height);
-          
-          // Configure Name Font - Beautiful Elegant Cursive Font
-          // Increased font size dramatically (140px) because cursive fonts need it to look substantial
-          ctx.font = '140px "Great Vibes", "Edwardian Script ITC", "Vivaldi", "Snell Roundhand", "Brush Script MT", cursive';
-          ctx.fillStyle = '#9e7421'; // Deep elegant gold
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle'; // Center it vertically in the empty space
-          
-          // Lookup user in usersList to guarantee we have their true full name
-          const userRecord = usersList.find(u => u.phoneNumber === attempt.phoneNumber);
-          let rawName = attempt.firstName || '';
-          if (userRecord && userRecord.lastName) {
-             rawName = `${userRecord.firstName || attempt.firstName} ${userRecord.lastName}`.trim();
-          } else if (attempt.lastName) {
-             rawName = `${attempt.firstName} ${attempt.lastName}`.trim();
-          }
-          
-          // Cursive fonts ONLY look good in Title Case, avoid all-caps!
-          const toTitleCase = (str) => {
-             return str.toLowerCase().split(/\s+/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-          };
-          
-          const displayName = rawName ? toTitleCase(rawName) : 'Student';
-          
-          // Name placement: canvas.height * 0.46 pushes it down beautifully into the center of the gap
-          ctx.fillText(displayName, canvas.width / 2, canvas.height * 0.46);
-
-          // --- Removing overlapping 'Test Title' and 'Score' text that clashed with your template's body ---
-
-          // Erase the pre-printed "Date : ___/____/2026" at the bottom right using a white box
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(canvas.width * 0.55, canvas.height * 0.95, canvas.width * 0.3, canvas.height * 0.05);
-
-          // Write the dynamic date exactly where the template date used to be
-          const dateOnly = (attempt.date || '').split(',')[0].trim(); // e.g. "08 Apr 2026"
-          ctx.font = 'bold 24px Georgia, "Times New Roman", serif';
-          ctx.fillStyle = '#333333'; // Match the template's dark grey/black font
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          ctx.fillText(`Date: ${dateOnly}`, canvas.width * 0.68, canvas.height * 0.985);
-
-          // Trigger Download
-          const link = document.createElement('a');
-          link.download = `Certificate_${displayName.replace(/[^a-zA-Z0-9_\s]/g, '').replace(/\s+/g, '_')}.png`;
-          link.href = canvas.toDataURL('image/png', 1.0);
-          
-          // Append to body, click, then remove (required by some browsers)
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        } catch (e) {
-          console.error("Canvas drawing error:", e);
-          alert("Error generating certificate: " + e.message);
-        }
-      };
-
-      img.onerror = () => {
-        alert(`Failed to load the certificate template image at: ${img.src}`);
-      };
-
-      // Use Vite's BASE_URL to ensure it works on GitHub Pages subpaths
-      const basePath = import.meta.env.BASE_URL || '/';
-      const cleanBasePath = basePath.endsWith('/') ? basePath : basePath + '/';
-      img.src = `${cleanBasePath}certificate of Completion.png`;
-    } catch (err) {
-      console.error("Certificate generation error:", err);
-      alert("An unexpected error occurred while creating the certificate.");
-    }
+    const userRecord = usersList.find(u => u.phoneNumber === attempt.phoneNumber);
+    downloadUserCertificate(attempt, userRecord);
   };
 
   const downloadCSV = () => {
@@ -571,6 +524,8 @@ export default function AdminDashboard() {
                         <th className="p-4">Title</th>
                         <th className="p-4 text-center">Questions</th>
                         <th className="p-4 text-center">Status</th>
+                        <th className="p-4 text-center">One Attempt Only</th>
+                        <th className="p-4 text-center">Certificates</th>
                         <th className="p-4 text-center">Negative Marks (Per Wrong Answer)</th>
                       </tr>
                     </thead>
@@ -579,6 +534,8 @@ export default function AdminDashboard() {
                          const config = testConfigs[test.id] || {};
                          // Defaults to true if strictly not set to false
                          const isPublished = config.isPublished !== false;
+                         const oneAttemptOnly = config.oneAttemptOnly === true;
+                         const certificateEnabled = config.certificateEnabled === true;
                          const negMarks = config.negativeMarks || '';
 
                          return (
@@ -594,6 +551,26 @@ export default function AdminDashboard() {
                                 className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isPublished ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-600 border border-slate-300'}`}
                               >
                                 {isPublished ? 'Published' : 'Hidden'}
+                              </button>
+                            </td>
+
+                            {/* Toggle One Attempt */}
+                            <td className="p-4 text-center">
+                              <button
+                                onClick={() => handleToggleOneAttempt(test.id, oneAttemptOnly)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${oneAttemptOnly ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-slate-200 text-slate-600 border border-slate-300'}`}
+                              >
+                                {oneAttemptOnly ? 'Enabled' : 'Disabled'}
+                              </button>
+                            </td>
+
+                            {/* Toggle Certificate */}
+                            <td className="p-4 text-center">
+                              <button
+                                onClick={() => handleToggleCertificate(test.id, certificateEnabled)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${certificateEnabled ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-slate-200 text-slate-600 border border-slate-300'}`}
+                              >
+                                {certificateEnabled ? 'Enabled' : 'Disabled'}
                               </button>
                             </td>
 
